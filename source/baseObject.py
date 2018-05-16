@@ -4,7 +4,8 @@
 #This file is covered by the GNU General Public License.
 #See the file COPYING for more details.
 
-"""Contains the base classes that many of NVDA's classes such as NVDAObjects, virtualBuffers, appModules, synthDrivers inherit from. These base classes provide such things as auto properties, and methods and properties for scripting and key binding.
+"""Contains the base classes that many of NVDA's classes such as NVDAObjects, virtualBuffers, appModules, synthDrivers inherit from.
+These base classes provide such things as auto properties, and methods and properties for scripting and key binding.
 """
 
 import weakref

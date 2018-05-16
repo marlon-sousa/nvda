@@ -86,6 +86,7 @@ WS_HSCROLL=0x100000
 WS_VSCROLL=0x200000
 WS_CAPTION=0xC00000
 WS_EX_TOPMOST=0x00000008
+WS_EX_LAYERED = 0x80000
 BS_GROUPBOX=7
 ES_MULTILINE=4
 LBS_OWNERDRAWFIXED=0x0010
@@ -115,6 +116,9 @@ GWL_EXSTYLE=-20
 GW_HWNDNEXT=2
 GW_HWNDPREV=3
 GW_OWNER=4
+# SetLayeredWindowAttributes
+LWA_ALPHA = 2
+LWA_COLORKEY = 1
 #Window messages
 WM_GETTEXT=13
 WM_GETTEXTLENGTH=14
@@ -483,6 +487,15 @@ def getGUIThreadInfo(threadID):
 
 def getWindowStyle(hwnd):
 	return user32.GetWindowLongW(hwnd,GWL_STYLE)
+
+def getExtendedWindowStyle(hwnd):
+	return user32.GetWindowLongW(hwnd,GWL_EXSTYLE)
+
+def setExtendedWindowStyle(hwnd, exstyle):
+	return user32.SetWindowLongW(hwnd,GWL_EXSTYLE, exstyle)
+
+def SetLayeredWindowAttributes(hwnd, key, alpha, flags):
+	return user32.SetLayeredWindowAttributes(hwnd, key, alpha, flags)
 
 def getPreviousWindow(hwnd):
 	try:
