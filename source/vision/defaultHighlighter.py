@@ -15,6 +15,7 @@ import winUser
 from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
 from colors.predefined import *
+import cursorManager
 
 class DefaultHighlighter(Highlighter):
 	name = "defaultHighlighter"
@@ -24,7 +25,10 @@ class DefaultHighlighter(Highlighter):
 		CONTEXT_NAVIGATOR: blue, 
 		CONTEXT_CARET: green
 	}
-	margin = 15
+	highlightMargin = 15
+
+	def _get__currentCaretIsVirtual(self):
+		return isinstance(api.getCaretObject(), cursorManager.CursorManager)
 
 	def __init__(self, *roles):
 		self.window = None
@@ -61,11 +65,15 @@ class DefaultHighlighter(Highlighter):
 				continue
 			dc.SetPen(wx.Pen(self.contextColors[context], 4))
 			l, t, r, b = rect
-			l -= self.margin
-			t -= self.margin
-			w = r - l + self.margin
-			h = b - t + self.margin
-			dc.DrawRectangle(l, t, w, h)
+			if context == CONTEXT_CARET:
+				if self._currentCaretIsVirtual:
+					dc.DrawLine(r, t, r, b)
+			else:
+				l -= self.highlightMargin
+				t -= self.highlightMargin
+				w = r - l + self.highlightMargin
+				h = b - t + self.highlightMargin
+				dc.DrawRectangle(l, t, w, h)
 
 class HighlightWindow(wx.Frame):
 	transparency = 0xC0
