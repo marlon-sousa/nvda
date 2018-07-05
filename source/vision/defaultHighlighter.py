@@ -14,10 +14,17 @@ from ctypes.wintypes import COLORREF
 import winUser
 from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
+from colors.predefined import *
 
 class DefaultHighlighter(Highlighter):
 	name = "defaultHighlighter"
-	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR])
+	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
+	contextColors = {
+		CONTEXT_FOCUS: red,
+		CONTEXT_NAVIGATOR: blue, 
+		CONTEXT_CARET: green
+	}
+	margin = 15
 
 	def __init__(self, *roles):
 		self.window = None
@@ -52,10 +59,12 @@ class DefaultHighlighter(Highlighter):
 			rect = self.contextToRectMap.get(context)
 			if not rect:
 				continue
-			dc.SetPen(wx.Pen(wx.RED, 4))
+			dc.SetPen(wx.Pen(self.contextColors[context], 4))
 			l, t, r, b = rect
-			w = r - l
-			h = b - t
+			l -= self.margin
+			t -= self.margin
+			w = r - l + self.margin
+			h = b - t + self.margin
 			dc.DrawRectangle(l, t, w, h)
 
 class HighlightWindow(wx.Frame):
