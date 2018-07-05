@@ -24,6 +24,9 @@ import weakref
 from logHandler import log
 import wx
 from collections import defaultdict
+from displayModel import getCaretRect
+import textInfos
+import NVDAObjects
 
 CONTEXT_UNDETERMINED = "undetermined"
 CONTEXT_FOCUS = "focus"
@@ -104,7 +107,6 @@ class VisionEnhancementProvider(AutoPropertyObject):
 		elif context == CONTEXT_FOREGROUND:
 			return api.getForegroundObject()
 		elif context == CONTEXT_CARET:
-			# Todo, return nothing when there's no caret
 			return api.getCaretObject()
 		elif context == CONTEXT_REVIEW:
 			return api.getReviewPosition().obj
@@ -124,6 +126,24 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			obj = cls.getContextObject(context)
 		if not obj:
 			raise LookupError
+		if context == CONTEXT_CARET:
+			if isinstance(obj, NVDAObjects.NVDAObject):
+				# Check whether there is a caret in the window.
+				try:
+					rect = getCaretRect(obj)
+					return (rect.left, rect.top, rect.right, rect.bottom)
+				except RuntimeError:
+					pass
+			try:
+				caretInfo = obj.makeTextInfo(textInfos.POSITION_CARET)
+			except NotImplementedError:
+				# There is nothing to do here
+				raise LookupError
+			try:
+				return caretInfo.boundingRect.toLTRB()
+			except: # Todo, only catch lookup and notimplemented
+				point = caretInfo.pointAtStart
+				return point.x, point.y, point.x+1, point.y+1
 		location = obj.location
 		if not location:
 			raise LookupError

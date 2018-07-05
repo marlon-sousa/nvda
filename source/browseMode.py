@@ -27,6 +27,7 @@ import controlTypes
 import config
 import textInfos
 import braille
+import vision
 import speech
 import sayAllHandler
 import treeInterceptorHandler
