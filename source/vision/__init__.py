@@ -121,7 +121,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 	def getContextRect(cls, context, obj=None):
 		"""Gets a rectangle for the specified context.
 		If L{obj} is not C{None}, the object is used to get the rectangle from.
-		Otherwise, the base implementation calls L{getContextObject} and gets a rectangle from the object."""
+		Otherwise, the base implementation calls L{getContextObject} and gets a rectangle from the object, if necessary."""
 		if not obj:
 			obj = cls.getContextObject(context)
 		if not obj:
@@ -143,7 +143,14 @@ class VisionEnhancementProvider(AutoPropertyObject):
 				return caretInfo.boundingRect.toLTRB()
 			except: # Todo, only catch lookup and notimplemented
 				point = caretInfo.pointAtStart
-				return point.x, point.y, point.x+1, point.y+1
+				return (point.x, point.y, point.x, point.y)
+		elif context == CONTEXT_REVIEW:
+			reviewInfo = api.getReviewPosition()
+			try:
+				return reviewInfo.boundingRect
+			except: # Todo, only catch lookup and notimplemented
+				point = reviewInfo.pointAtStart
+				return (point.x, point.y, point.x, point.y)
 		location = obj.location
 		if not location:
 			raise LookupError
@@ -446,17 +453,14 @@ class VisionHandler(AutoPropertyObject):
 		if self.lastReviewMoveContext is None:
 			# No review change.
 			return
-		context = self.lastReviewMoveContext
-		try:
-			if context is not CONTEXT_REVIEW:
-				# Ignore for now
-				return
-			if self.magnifier and self.magnifier.enabled:
-				self.magnifier.trackToObject(context=context)
-			if self.highlighter and self.highlighter.enabled and context in self.highlighter.supportedContexts:
-				self.highlighter.updateContextRect(context=context)
-		finally:
-			self.lastReviewMoveContext = None
+		lastReviewMoveContext = self.lastReviewMoveContext
+		self.lastReviewMoveContext = None
+		if lastReviewMoveContext in (CONTEXT_NAVIGATOR, CONTEXT_REVIEW) and self.magnifier and self.magnifier.enabled:
+			self.magnifier.trackToObject(context=lastReviewMoveContext)
+		if self.highlighter and self.highlighter.enabled:
+			for context in (CONTEXT_NAVIGATOR, CONTEXT_REVIEW):
+				if context in self.highlighter.supportedContexts:
+					self.highlighter.updateContextRect(context=context)
 
 	def handleMouseMove(self, obj, x, y):
 		# Mouse moves execute once per core cycle.
