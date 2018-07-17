@@ -238,25 +238,25 @@ class Magnifier(VisionEnhancementProvider):
 		Subclasses must extend this method.
 		"""
 
-	def trackToObject(self, obj=None, context=CONTEXT_UNDETERMINED):
+	def trackToObject(self, obj=None, context=CONTEXT_UNDETERMINED, area=None):
 		"""Tracks the magnifier to the given object.
 		If object is C{None}, the appropriate object is fetched automatically.
 		The base implementation simply tracks to the location of the object.
 		Subclasses may override this method to implement context specific behaviour.
 		"""
 		rect = self.getContextRect(context, obj)
-		self.trackToRectangle(rect, context=context)
+		self.trackToRectangle(rect, context=context, aria=aria)
 
 	@abstractmethod
-	def trackToRectangle(self, rect, context=CONTEXT_UNDETERMINED):
+	def trackToRectangle(self, rect, context=CONTEXT_UNDETERMINED, area=None):
 		"""Tracks the magnifier to the given rectangle."""
 		raise NotImplementedError
 
-	def trackToPoint(self, point, context=CONTEXT_UNDETERMINED):
+	def trackToPoint(self, point, context=CONTEXT_UNDETERMINED, area=None):
 		"""Tracks the magnifier to the given point.
 		The base implementation creates a rectangle from a point and tracks to that rectangle."""
 		x, y = point
-		self.trackToRectangle((x, y, x+1, y+1), context=context)
+		self.trackToRectangle((x, y, x+1, y+1), context=context, area=area)
 
 	_abstract_magnificationLevel = True
 	def _get_magnificationLevel(self):
