@@ -47,6 +47,7 @@ import winVersion
 import weakref
 import time
 import keyLabels
+import vision
 
 class SettingsDialog(wx.Dialog):
 	"""A settings dialog.
@@ -2430,6 +2431,79 @@ class BrailleSettingsSubPanel(SettingsPanel):
 	def onNoMessageTimeoutChange(self, evt):
 		self.messageTimeoutEdit.Enable(not evt.IsChecked())
 
+class VisionSettingsPanel(SettingsPanel):
+	# Translators: This is the label for the vision panel
+	title = _("Vision")
+
+	def makeSettings(self, settingsSizer):
+		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+		# Translators: A label for the currently active vision enhancement providers on the vision panel.
+		providersLabel = _("Current vision enhancement providers")
+
+		providersBox = wx.StaticBox(self, label=providersLabel)
+		providersGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(providersBox, wx.HORIZONTAL))
+		settingsSizerHelper.addItem(providersGroup)
+		self.providersCtrl = ExpandoTextCtrl(self, size=(self.scaleSize(250), -1), style=wx.TE_READONLY)
+		self.updateCurrentProviders()
+		# Translators: This is the label for the button used to change dvision enhancement providers,
+		# it appears in the context of a vision enhancement providers group on the vision settings panel.
+		changeProvidersBtn = wx.Button(self, label=_("C&hange..."))
+		providersGroup.addItem(
+			guiHelper.associateElements(
+				self.providersCtrl,
+				changeProvidersBtn
+			)
+		)
+		self.providersCtrl.Bind(wx.EVT_CHAR_HOOK, self._enterTriggersOnChangeProviders)
+		changeProvidersBtn.Bind(wx.EVT_BUTTON,self.onChangeProviders)
+
+	def _enterTriggersOnChangeProviders(self, evt):
+		if evt.KeyCode == wx.WXK_RETURN:
+			self.onChangeProviders(evt)
+		else:
+			evt.Skip()
+
+	def onChangeProviders(self, evt):
+		changeProviders = VisionProviderSelectionDialog(self, multiInstanceAllowed=True)
+		ret = changeProviders.ShowModal()
+		if ret == wx.ID_OK:
+			self.Freeze()
+			# trigger a refresh of the settings
+			self.onPanelActivated()
+			self._sendLayoutUpdatedEvent()
+			self.Thaw()
+
+	def updateCurrentProviders(self):
+		currentProviders = {}
+		for role, roleDesc in vision.ROLE_DESCRIPTIONS.iteritems():
+			provider = getattr(vision.handler, role, None)
+			if provider:
+				currentProviders[roleDesc]=provider.description
+		currentProvidersStr = ("\n".join("{}: {}".format(role, provider) for role, provider in currentProviders.iteritems()) or 
+			# Translators: Displayed in the current vision enhancement providers edit control,
+			# when no providers are active.
+			_("No active providers"))
+		self.providersCtrl.SetValue(currentProvidersStr)
+
+	def onPanelActivated(self):
+		super(VisionSettingsPanel,self).onPanelActivated()
+
+	def onPanelDeactivated(self):
+		super(VisionSettingsPanel,self).onPanelDeactivated()
+
+	def onDiscard(self):
+		pass
+
+	def onSave(self):
+		pass
+
+class VisionProviderSelectionDialog(SettingsDialog):
+	# Translators: This is the label for the braille provider selection dialog.
+	title = _("Select Vision Providers")
+
+	def makeSettings(self, settingsSizer):
+		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+
 """ The Id of the category panel in the multi category settings dialog, this is set when the dialog is created
 and returned to None when the dialog is destroyed. This can be used by an AppModule for NVDA to identify and announce
 changes in name for the panel when categories are changed"""
@@ -2446,6 +2520,7 @@ class NVDASettingsDialog(MultiCategorySettingsDialog):
 		GeneralSettingsPanel,
 		SpeechSettingsPanel,
 		BrailleSettingsPanel,
+		VisionSettingsPanel,
 		KeyboardSettingsPanel,
 		MouseSettingsPanel,
 		ReviewCursorPanel,

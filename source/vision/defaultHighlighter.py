@@ -19,6 +19,8 @@ import cursorManager
 
 class DefaultHighlighter(Highlighter):
 	name = "defaultHighlighter"
+	# Translators: Description for NVDA's built-in screen highlighter.
+	description = _("Default")
 	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
 	contextColors = {
 		CONTEXT_FOCUS: red,
