@@ -24,7 +24,6 @@ import weakref
 from logHandler import log
 import wx
 from collections import defaultdict
-from displayModel import getCaretRect
 import textInfos
 import NVDAObjects
 
@@ -128,6 +127,8 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			raise LookupError
 		if context == CONTEXT_CARET:
 			if isinstance(obj, NVDAObjects.NVDAObject):
+				# Import late to avoid circular import
+				from displayModel import getCaretRect
 				# Check whether there is a caret in the window.
 				try:
 					rect = getCaretRect(obj)
