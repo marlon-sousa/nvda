@@ -26,6 +26,7 @@ import wx
 from collections import defaultdict
 import textInfos
 import NVDAObjects
+import winVersion
 
 CONTEXT_UNDETERMINED = "undetermined"
 CONTEXT_FOCUS = "focus"
@@ -297,11 +298,18 @@ class ColorEnhancer(VisionEnhancementProvider):
 		Subclasses must extend this method.
 		"""
 
-	_abstract_availableTransformations = True
-	def _get_availableTransformations(self):
+	_abstract_supportedTransformations = True
+	def _get_supportedTransformations(self):
 		"""Returns the color transformations supported by this color enhancer.
 		@rtype: L{ColorTransformation}
 		"""
+		raise NotImplementedError
+
+	_abstract_transformation = True
+	def _get_transformation(self):
+		raise NotImplementedError
+
+	def _set_transformation(self, transformation):
 		raise NotImplementedError
 
 ROLE_TO_CLASS_MAP = {
@@ -493,8 +501,9 @@ class VisionHandler(AutoPropertyObject):
 
 def initialize():
 	# Register build in providers
-	from screenMask import ScreenMask
-	registerProviderCls(ScreenMask)
+	if (winVersion.major, winVersion.minor) >= (6, 2):
+		from screenCurtain import WinMagnificationScreenCurtain as ScreenCurtain
+		registerProviderCls(ScreenCurtain)
 	from defaultHighlighter import DefaultHighlighter
 	registerProviderCls(DefaultHighlighter)
 	global handler

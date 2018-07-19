@@ -322,6 +322,20 @@ RDW_UPDATENOW = 0x0100
 QS_ALLINPUT = 0x04ff
 MWMO_ALERTABLE = 0x0002
 
+# GetSystemMetrics constants
+# The width of the screen of the primary display monitor, in pixels.
+SM_CXSCREEN = 0
+# The height of the screen of the primary display monitor, in pixels.
+SM_CYSCREEN = 1
+# The coordinates for the left side of the virtual screen.
+SM_XVIRTUALSCREEN = 76
+# The coordinates for the top of the virtual screen.
+SM_YVIRTUALSCREEN = 77
+# The width of the virtual screen, in pixels.
+SM_CXVIRTUALSCREEN = 78
+# The height of the virtual screen, in pixels.
+SM_CYVIRTUALSCREEN = 79
+
 def setSystemScreenReaderFlag(val):
 	user32.SystemParametersInfoW(SPI_SETSCREENREADER,val,0,SPIF_UPDATEINIFILE|SPIF_SENDCHANGE)
 

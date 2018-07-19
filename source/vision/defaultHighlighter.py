@@ -6,7 +6,7 @@
 
 """Default highlighter based on wx."""
 
-from . import *
+from . import Highlighter, CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET
 import wx
 import gui
 import api
@@ -14,7 +14,6 @@ from ctypes.wintypes import COLORREF
 import winUser
 from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
-from colors.predefined import *
 import cursorManager
 
 class DefaultHighlighter(Highlighter):
@@ -23,9 +22,9 @@ class DefaultHighlighter(Highlighter):
 	description = _("Default")
 	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
 	_contextColors = {
-		CONTEXT_FOCUS: red,
-		CONTEXT_NAVIGATOR: blue, 
-		CONTEXT_CARET: green
+		CONTEXT_FOCUS: wx.RED,
+		CONTEXT_NAVIGATOR: wx.BLUE,
+		CONTEXT_CARET: wx.GREEN,
 	}
 	_highlightMargin = 15
 	_refreshInterval = 250
