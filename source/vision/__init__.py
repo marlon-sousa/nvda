@@ -130,11 +130,13 @@ class VisionEnhancementProvider(AutoPropertyObject):
 				# Import late to avoid circular import
 				from displayModel import getCaretRect
 				# Check whether there is a caret in the window.
+				# Note that, even windows that don't have navigable text could have a caret, such as in Excel.
 				try:
 					rect = getCaretRect(obj)
 					return (rect.left, rect.top, rect.right, rect.bottom)
 				except RuntimeError:
-					pass
+					if not obj._hasNavigableText:
+						return None
 			try:
 				caretInfo = obj.makeTextInfo(textInfos.POSITION_CARET)
 			except NotImplementedError:
@@ -430,8 +432,14 @@ class VisionHandler(AutoPropertyObject):
 		context = CONTEXT_FOCUS
 		if self.magnifier and self.magnifier.enabled:
 			self.magnifier.trackToObject(obj, context=context)
-		if self.highlighter and self.highlighter.enabled and context in self.highlighter.supportedContexts:
-			self.highlighter.updateContextRect(context, obj=obj)
+		if self.highlighter and self.highlighter.enabled:
+			if context in self.highlighter.supportedContexts:
+				self.highlighter.updateContextRect(context, obj=obj)
+			if CONTEXT_CARET in self.highlighter.supportedContexts:
+				# Check whether this object has a caret.
+				# If it has one, update the caret highlight.
+				# If it hasn't, clear the caret rectangle from the map
+				self.highlighter.updateContextRect(CONTEXT_CARET, obj=obj)
 
 	def handleCaretMove(self, obj):
 		if not self.enabled:

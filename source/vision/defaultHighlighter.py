@@ -96,4 +96,3 @@ class HighlightWindow(wx.Frame):
 		self.Bind(wx.EVT_PAINT, highlighter.onPaint)
 		self.Disable()
 		self.Show()
-
