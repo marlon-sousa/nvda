@@ -22,25 +22,32 @@ class DefaultHighlighter(Highlighter):
 	# Translators: Description for NVDA's built-in screen highlighter.
 	description = _("Default")
 	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
-	contextColors = {
+	_contextColors = {
 		CONTEXT_FOCUS: red,
 		CONTEXT_NAVIGATOR: blue, 
 		CONTEXT_CARET: green
 	}
-	highlightMargin = 15
+	_highlightMargin = 15
+	_refreshInterval = 250
 
 	def _get__currentCaretIsVirtual(self):
 		return isinstance(api.getCaretObject(), cursorManager.CursorManager)
 
 	def __init__(self, *roles):
 		self.window = None
+		self._refreshTimer = None
 		super(Highlighter, self).__init__(*roles)
 
 	def initializeHighlighter(self):
 		super(DefaultHighlighter, self).initializeHighlighter()
 		self.window = HighlightWindow(self)
+		self._refreshTimer = gui.NonReEntrantTimer(self.refresh)
+		self._refreshTimer.Start(self._refreshInterval)
 
 	def terminateHighlighter(self):
+		if self._refreshTimer:
+			self._refreshTimer.Stop()
+			self._refreshTimer = None
 		if self.window:
 			self.window.Destroy()
 			self.window = None
@@ -65,16 +72,16 @@ class DefaultHighlighter(Highlighter):
 			rect = self.contextToRectMap.get(context)
 			if not rect:
 				continue
-			dc.SetPen(wx.Pen(self.contextColors[context], 4))
+			dc.SetPen(wx.Pen(self._contextColors[context], 4))
 			l, t, r, b = rect
 			if context == CONTEXT_CARET:
 				if self._currentCaretIsVirtual:
 					dc.DrawLine(r, t, r, b)
 			else:
-				l -= self.highlightMargin
-				t -= self.highlightMargin
-				w = r - l + self.highlightMargin
-				h = b - t + self.highlightMargin
+				l -= self._highlightMargin
+				t -= self._highlightMargin
+				w = r - l + self._highlightMargin
+				h = b - t + self._highlightMargin
 				dc.DrawRectangle(l, t, w, h)
 
 class HighlightWindow(wx.Frame):

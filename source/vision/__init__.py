@@ -505,8 +505,6 @@ def pumpAll():
 	# Note that a pending review update has to be executed before a pending caret update.
 	handler.handlePendingReviewUpdate()
 	handler.handlePendingCaretUpdate()
-	if handler.highlighter:
-		handler.highlighter.refresh()
 
 def registerProviderCls(providerCls):
 	"""Register a vision enhancement provider class.
