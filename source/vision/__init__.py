@@ -142,18 +142,12 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			except NotImplementedError:
 				# There is nothing to do here
 				raise LookupError
-			try:
-				return caretInfo.boundingRect.toLTRB()
-			except: # Todo, only catch lookup and notimplemented
-				point = caretInfo.pointAtStart
-				return (point.x, point.y, point.x, point.y)
+			point = caretInfo.pointAtStart
+			return (point.x, point.y-5, point.x, point.y+5)
 		elif context == CONTEXT_REVIEW:
 			reviewInfo = api.getReviewPosition()
-			try:
-				return reviewInfo.boundingRect
-			except: # Todo, only catch lookup and notimplemented
-				point = reviewInfo.pointAtStart
-				return (point.x, point.y, point.x, point.y)
+			point = reviewInfo.pointAtStart
+			return (point.x, point.y-5, point.x, point.y+5)
 		location = obj.location
 		if not location:
 			raise LookupError
@@ -247,7 +241,10 @@ class Magnifier(VisionEnhancementProvider):
 		The base implementation simply tracks to the location of the object.
 		Subclasses may override this method to implement context specific behaviour.
 		"""
-		rect = self.getContextRect(context, obj)
+		try:
+			rect = self.getContextRect(context, obj)
+		except LookupError:
+			return
 		self.trackToRectangle(rect, context=context, area=area)
 
 	@abstractmethod
