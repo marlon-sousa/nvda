@@ -15,7 +15,6 @@ import winUser
 from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
 import cursorManager
-import windowUtils
 from locationHelper import RectLTRB
 
 class DefaultHighlighter(Highlighter):
@@ -74,16 +73,12 @@ class DefaultHighlighter(Highlighter):
 			if not rect:
 				continue
 			dc.SetPen(wx.Pen(self._contextColors[context], 4))
-			rect = rect.toClient(window.Handle).toLogical(window.Handle)
+			rect = rect.expandOrShrink(self._highlightMargin).toClient(window.Handle).toLogical(window.Handle)
 			if context == CONTEXT_CARET:
 				if self._currentCaretIsVirtual:
 					dc.DrawLine(rect.right, rect.top, rect.right, rect.bottom)
 			else:
-				l -= self._highlightMargin
-				t -= self._highlightMargin
-				w = r - l + self._highlightMargin
-				h = b - t + self._highlightMargin
-				dc.DrawRectangle(l, t, w, h)
+				dc.DrawRectangle(*rect.toLTWH())
 
 class HighlightWindow(wx.Frame):
 	transparency = 0xC0
@@ -94,7 +89,9 @@ class HighlightWindow(wx.Frame):
 		self.SetPosition(minPos)
 		self.SetSize(self.scaleSize((screenWidth, screenHeight)))
 
-	def _get_scaleFactor(self):
+	@property
+	def scaleFactor(self):
+		import windowUtils
 		return windowUtils.getWindowScalingFactor(self.Handle)
 
 	def scaleSize(self, size):

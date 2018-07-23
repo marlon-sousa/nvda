@@ -6,7 +6,7 @@
 
 """Screen curtain implementation based on the windows magnification API."""
 
-from . import ColorEnhancer, ColorTransformation
+from . import ColorEnhancer, ColorTransformation, ROLE_MAGNIFIER
 import winMagnification
 from ctypes import byref
 import winVersion
@@ -29,10 +29,10 @@ class WinMagnificationScreenCurtain(ColorEnhancer):
 		ColorTransformation("black", _("black "), TRANSFORM_BLACK),
 		ColorTransformation("default", _("disabled"), TRANSFORM_BLACK)
 	)
-	conflictingRoles = frozenset(ROLE_MAGNIFIER)
+	conflictingRoles = frozenset([ROLE_MAGNIFIER])
 
 	def __init__(self, *roles):
-		if (winVersion.major, winVersion.minor) < (6, 2):
+		if (winVersion.winVersion.major, winVersion.winVersion.minor) < (6, 2):
 			raise RuntimeError("This vision enhancement provider is only supported on Windows 8 and above")
 		winMagnification.Initialize()
 		super(ScreenCurtain, self).__init__(*roles)

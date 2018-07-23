@@ -59,7 +59,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 		if not inst:
 			obj = super(VisionEnhancementProvider, cls).__new__(cls, *args, **kwargs)
 			obj.activeRoles = set()
-		cls._instance = weakref.ref(obj)
+			cls._instance = weakref.ref(obj)
 			return obj
 		return inst
 
@@ -349,13 +349,16 @@ class VisionHandler(AutoPropertyObject):
 	def setProvider(self, name, *roles):
 		"""Enables and activates the selected provider for the provided roles.
 		If there was a previous provider in use for a role,
-		that provider will be terminated for that role,
+		that provider will be terminated for that role.
+		If another provider has to be terminated because of conflicting roles set for the new provider,
+		a RuntimeError is raised.
 		@param name: The name of the registered provider class.
 		@type name: str
 		@param roles: names of roles to enable the provider for.
 			Supplied values should be one of the C{ROLE_*} constants.
 			If no roles are provided, the provider is enabled for all the roles it supports.
 		@type roles: str
+		@raise RuntimeError: If a provider couldn't be loaded due to conflicts.
 		"""
 		if name in (None, "None"):
 			if not roles:
@@ -369,6 +372,11 @@ class VisionHandler(AutoPropertyObject):
 				break
 		else:
 			raise ValueError("Vision enhancement provider %s not registered" % name)
+		conflicts = {getattr(self, role) for role in providerCls.conflictingRoles}
+		if conflicts:
+			raise RuntimeError("This provider couldn't be activated because of conflicts with provider(s) %s." %
+				", ".join(conflict.name for conflict in conflicts)
+			)
 		if not roles:
 			roles = providerCls.supportedRoles
 		else:
@@ -388,7 +396,7 @@ class VisionHandler(AutoPropertyObject):
 		if overlappingRoles:
 			providerInst.terminate(*overlappingRoles)
 		# Properly terminate  conflicting providers.
-		for conflict in newRoles | providerCls.conflictingRoles:
+		for conflict in newRoles:
 			self.terminateProviderForRole(conflict)
 		# Initialize the provider for the new and overlapping roles
 		providerInst.__init__(*roles)
@@ -498,7 +506,7 @@ class VisionHandler(AutoPropertyObject):
 
 def initialize():
 	# Register build in providers
-	if (winVersion.major, winVersion.minor) >= (6, 2):
+	if (winVersion.winVersion.major, winVersion.winVersion.minor) >= (6, 2):
 		from screenCurtain import WinMagnificationScreenCurtain as ScreenCurtain
 		registerProviderCls(ScreenCurtain)
 	from defaultHighlighter import DefaultHighlighter
