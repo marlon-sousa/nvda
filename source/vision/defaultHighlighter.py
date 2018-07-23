@@ -15,6 +15,7 @@ import winUser
 from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
 import cursorManager
+import windowUtils
 
 class DefaultHighlighter(Highlighter):
 	name = "defaultHighlighter"
@@ -90,7 +91,18 @@ class HighlightWindow(wx.Frame):
 		displays = [ wx.Display(i).GetGeometry() for i in xrange(wx.Display.GetCount()) ]
 		screenWidth, screenHeight, minPos = getTotalWidthAndHeightAndMinimumPosition(displays)
 		self.SetPosition(minPos)
-		self.SetSize((screenWidth, screenHeight))
+		self.SetSize(self.scaleSize((screenWidth, screenHeight)))
+
+	def _get_scaleFactor(self):
+		return windowUtils.getWindowScalingFactor(self.Handle)
+
+	def scaleSize(self, size):
+		"""Helper method to scale a size using the logical DPI
+		@param size: The size (x,y) as a tuple or a single numerical type to scale
+		@returns: The scaled size, returned as the same type"""
+		if isinstance(size, tuple):
+			return (self.scaleFactor * size[0], self.scaleFactor * size[1])
+		return self.scaleFactor * size
 
 	def __init__(self, highlighter):
 		super(HighlightWindow, self).__init__(gui.mainFrame, style=wx.NO_BORDER | wx.STAY_ON_TOP | wx.FULL_REPAINT_ON_RESIZE | wx.FRAME_NO_TASKBAR)
