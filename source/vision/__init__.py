@@ -27,6 +27,7 @@ from collections import defaultdict
 import textInfos
 import NVDAObjects
 import winVersion
+from locationHelper import RectLTRB
 
 CONTEXT_UNDETERMINED = "undetermined"
 CONTEXT_FOCUS = "focus"
@@ -58,7 +59,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 		if not inst:
 			obj = super(VisionEnhancementProvider, cls).__new__(cls, *args, **kwargs)
 			obj.activeRoles = set()
-			cls._instance = weakref.ref(obj)
+		cls._instance = weakref.ref(obj)
 			return obj
 		return inst
 
@@ -133,8 +134,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 				# Check whether there is a caret in the window.
 				# Note that, even windows that don't have navigable text could have a caret, such as in Excel.
 				try:
-					rect = getCaretRect(obj)
-					return (rect.left, rect.top, rect.right, rect.bottom)
+					return RectLTRB.fromCompatibleType(getCaretRect(obj))
 				except RuntimeError:
 					if not obj._hasNavigableText:
 						return None
@@ -144,18 +144,15 @@ class VisionEnhancementProvider(AutoPropertyObject):
 				# There is nothing to do here
 				raise LookupError
 			point = caretInfo.pointAtStart
-			return (point.x, point.y-5, point.x, point.y+5)
+			return RectLTRB.fromPoint(point)
 		elif context == CONTEXT_REVIEW:
 			reviewInfo = api.getReviewPosition()
 			point = reviewInfo.pointAtStart
-			return (point.x, point.y-5, point.x, point.y+5)
+			return RectLTRB.fromPoint(point)
 		location = obj.location
 		if not location:
 			raise LookupError
-		l, t, w, h = location
-		r = l+w
-		b = t+h
-		return (l, t, r, b)
+		return location.toLTRB()
 
 	def terminate(self, *roles):
 		"""Executed when terminating this provider.

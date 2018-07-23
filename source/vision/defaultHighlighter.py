@@ -16,6 +16,7 @@ from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
 import cursorManager
 import windowUtils
+from locationHelper import RectLTRB
 
 class DefaultHighlighter(Highlighter):
 	name = "defaultHighlighter"
@@ -73,10 +74,10 @@ class DefaultHighlighter(Highlighter):
 			if not rect:
 				continue
 			dc.SetPen(wx.Pen(self._contextColors[context], 4))
-			l, t, r, b = rect
+			rect = rect.toClient(window.Handle).toLogical(window.Handle)
 			if context == CONTEXT_CARET:
 				if self._currentCaretIsVirtual:
-					dc.DrawLine(r, t, r, b)
+					dc.DrawLine(rect.right, rect.top, rect.right, rect.bottom)
 			else:
 				l -= self._highlightMargin
 				t -= self._highlightMargin
