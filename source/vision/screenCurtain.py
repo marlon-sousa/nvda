@@ -26,7 +26,8 @@ class WinMagnificationScreenCurtain(ColorEnhancer):
 	name = "screenCurtain"
 	description = _("Screen Curtain")
 	supportedTransformations = (
-		ColorTransformation("black", _("black "), TRANSFORM_BLACK),
+		ColorTransformation("black", pgettext('color hue','black'), TRANSFORM_BLACK),
+		# Translators: The state when the screen curtain is disabled.
 		ColorTransformation("default", _("disabled"), TRANSFORM_BLACK)
 	)
 	conflictingRoles = frozenset([ROLE_MAGNIFIER])
