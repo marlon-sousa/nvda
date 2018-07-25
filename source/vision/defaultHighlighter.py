@@ -20,7 +20,7 @@ from locationHelper import RectLTRB
 class DefaultHighlighter(Highlighter):
 	name = "defaultHighlighter"
 	# Translators: Description for NVDA's built-in screen highlighter.
-	description = _("Default")
+	description = _("Default Highlighter")
 	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
 	_contextColors = {
 		CONTEXT_FOCUS: wx.RED,

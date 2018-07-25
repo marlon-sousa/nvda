@@ -53,6 +53,11 @@ class VisionEnhancementProvider(AutoPropertyObject):
 	conflictingRoles = frozenset()
 	_instance = None
 
+	@classmethod
+	def check(cls):
+		return True
+
+	@classmethod
 	def __new__(cls, *args, **kwargs):
 		# Make this a singleton.
 		inst = cls._instance() if cls._instance else None
@@ -326,6 +331,22 @@ ROLE_DESCRIPTIONS = {
 	ROLE_COLORENHANCER: _("Color enhancer"),
 }
 
+def getProviderList(excludeNegativeChecks=True):
+	"""Gets a list of available vision enhancement names with their descriptions as well as supported and conflicting roles.
+	@param excludeNegativeChecks: excludes all providers for which the check method returns C{False}.
+	@type excludeNegativeChecks: bool
+	@return: list of tuples with provider names, descriptions, supported roles and conflicting roles.
+	@rtype: [(str,unicode,[ROLE_*],[ROLE_*])]
+	"""
+	providerList = []
+	for provider in _visionEnhancementProviders:
+		if not excludeNegativeChecks or provider.check():
+			providerList.append((provider.name, provider.description, list(provider.supportedRoles), list(provider.conflictingRoles)))
+		else:
+			log.debugWarning("Vision enhancement provider %s reports as unavailable, excluding" % provider.name)
+	providerList.sort(key=lambda d : d[1].lower())
+	return providerList
+
 class VisionHandler(AutoPropertyObject):
 
 	def __init__(self):
@@ -346,7 +367,7 @@ class VisionHandler(AutoPropertyObject):
 			curProvider.terminate(role)
 			setattr(self, role, None)
 
-	def setProvider(self, name, *roles):
+	def setProvider(self, name, *roles, **kwargs):
 		"""Enables and activates the selected provider for the provided roles.
 		If there was a previous provider in use for a role,
 		that provider will be terminated for that role.
@@ -358,52 +379,69 @@ class VisionHandler(AutoPropertyObject):
 			Supplied values should be one of the C{ROLE_*} constants.
 			If no roles are provided, the provider is enabled for all the roles it supports.
 		@type roles: str
+		@param isFallback: Whether the selected provider is enabled as a fallback.
+			Since this method uses a catch all handler for arguments,
+			this parameter should always be provided as a keyword argument.
+		@type isFallback: bool
 		@raise RuntimeError: If a provider couldn't be loaded due to conflicts.
 		"""
+		isFallback = kwargs.pop("isFallback", False)
 		if name in (None, "None"):
 			if not roles:
 				raise ValueError("No name and no roles provided")
 			for role in roles:
-				self.terminateProviderForRole(role)
-				config.conf['vision'][role] = None
-			return
+				try:
+					self.terminateProviderForRole(role)
+				except:
+					log.error("Couldn't terminate provider for role %s" % role)
+				if not isFallback:
+					config.conf['vision'][role] = None
+			return True
 		for providerCls in _visionEnhancementProviders:
 			if name == providerCls.name:
 				break
 		else:
 			raise ValueError("Vision enhancement provider %s not registered" % name)
-		conflicts = {getattr(self, role) for role in providerCls.conflictingRoles}
-		if conflicts:
-			raise RuntimeError("This provider couldn't be activated because of conflicts with provider(s) %s." %
-				", ".join(conflict.name for conflict in conflicts)
-			)
 		if not roles:
 			roles = providerCls.supportedRoles
 		else:
 			roles = set(roles)
 			for role in roles:
 				if role not in providerCls.supportedRoles:
-					raise TypeError("Provider %s does not implement role %s" % (name, role))
+					raise NotImplementedError("Provider %s does not implement role %s" % (name, role))
 
-		# Providers are singletons.
-		# Get a new or current instance of the provider
-		providerInst = providerCls.__new__(providerCls)
-		if providerInst.enabled:
-			log.debug("Provider %s is already active" % name)
-		# Terminate the provider for the roles that overlap between the provided roles and the active roles.
-		overlappingRoles =  providerInst.activeRoles & roles
-		newRoles =  roles - overlappingRoles
-		if overlappingRoles:
-			providerInst.terminate(*overlappingRoles)
-		# Properly terminate  conflicting providers.
-		for conflict in newRoles:
-			self.terminateProviderForRole(conflict)
-		# Initialize the provider for the new and overlapping roles
-		providerInst.__init__(*roles)
-		# Assign the new provider to the new roles.
-		for role in newRoles:
-			setattr(self, role, providerInst)
-			config.conf['vision'][role] = providerCls.name
+		try:
+			conflicts = {name for name in (getattr(self, role) for role in providerCls.conflictingRoles) if name}
+			if conflicts:
+				raise RuntimeError("This provider couldn't be activated because of conflicts with provider(s) %s." %
+					", ".join(conflict.name for conflict in conflicts)
+				)
+
+			# Providers are singletons.
+			# Get a new or current instance of the provider
+			providerInst = providerCls.__new__(providerCls)
+			if providerInst.enabled:
+				log.debug("Provider %s is already active" % name)
+			# Terminate the provider for the roles that overlap between the provided roles and the active roles.
+			overlappingRoles =  providerInst.activeRoles & roles
+			newRoles =  roles - overlappingRoles
+			if overlappingRoles:
+				providerInst.terminate(*overlappingRoles)
+			# Properly terminate  conflicting providers.
+			for conflict in newRoles:
+				self.terminateProviderForRole(conflict)
+			# Initialize the provider for the new and overlapping roles
+			providerInst.__init__(*roles)
+			# Assign the new provider to the new roles.
+			for role in newRoles:
+				setattr(self, role, providerInst)
+				if not isFallback:
+					config.conf['vision'][role] = providerCls.name
+			return True
+		except:
+			log.error("Error initializing vision enhancement provider %s for roles %s" % (name, ", ".join(roles)), exc_info=True)
+			self.setProvider(None, *roles, isFallback=True)
+			return False
 
 	def _get_initializedProviders(self):
 		return frozenset(
