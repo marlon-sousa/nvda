@@ -2504,16 +2504,14 @@ class VisionProviderSelectionDialog(SettingsDialog):
 	title = _("Select Vision Providers")
 	availableRoles = tuple(role for role in vision.ROLE_TO_CLASS_MAP.iterkeys())
 
-	def initializeState(self):
-		self._state = defaultdict(set)
-		for role in self.availableRoles:
-			self._state[config.conf['vision'][role]].add(role)
-		self._oldState = deepcopy(self._state)
-
-	def getProviderForRoleInState(self, state, role):
-		providers = [provider for provider, roles in state if role in roles]
-		assert len(providers) == 1
-		return providers[0]
+	def changeRoleInState(self, role, oldProvider=None, newProvider=None):
+		if not oldProvider:
+			for provider, roles in self._state.iteritems():
+				if role in roles:
+					roles.remove(role)
+		else:
+			self._state[oldProvider].remove(role)
+		self._state[newProvider].add(role)
 
 	def makeSettings(self, settingsSizer):
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
@@ -2537,6 +2535,10 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		self.providerList.SetFocus()
 
 	def updateEnhancementProviderLists(self):
+		self._state = defaultdict(set)
+		for role in self.availableRoles:
+			self._state[config.conf['vision'][role]].add(role)
+		self._oldState = deepcopy(self._state)
 		providerList = vision.getProviderList()
 		self.providerNames = [provider[0] for provider in providerList]
 		providerChoices = [provider[1] for provider in providerList]
@@ -2575,12 +2577,13 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		if index != self.providerList.Selection:
 			# Toggled an unselected provider
 			return
+		providerName = self.providerNames[index]
 		providerRoles = self.providerSupportedRolesList[index]
 		itemsToProcess = []
 		isChecked = self.providerList.IsChecked(index)
 		if isChecked:
 			itemsToProcess.extend(item for item, role in enumerate(providerRoles)
-				if role not in self._state[self.providerNames[index]]
+				if role not in self._state[providerName]
 			)
 			self.rolesList.Checked = itemsToProcess
 		else:
@@ -2590,7 +2593,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		for item in itemsToProcess:
 			self.onRoleToggled(index=item)
 		if evt and isChecked:
-			self.evaluatePossibleConflicts(isProvider=True)
+			self.evaluatePossibleConflicts()
 
 	def onRoleToggled(self, evt=None, index=None):
 		if (evt is None and index is None) or (evt is not None and index is not None):
@@ -2604,18 +2607,17 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		role = self.providerSupportedRolesList[self.providerList.Selection][index]
 		isChecked = self.rolesList.IsChecked(index)
 		if isChecked:
-			for name, roles in self._state.iteritems():
-				# Process conflicting roles
-				for conflict in self.providerConflictingRolesList[self.providerList.Selection]:
-					if conflict in roles:
-						roles.remove(conflict)
-						self._state[None].add(conflict)
-				if role in roles:
-					roles.remove(role)
-			self._state[providerName].add(role)
+			# Process conflicting roles
+			for item in self.providerList.Checked:
+				name = self.providerNames[item]
+				for conflict in self.providerConflictingRolesList[item]:
+					if conflict is role:
+						self._state[name].clear()
+					else:
+						self.changeRoleInState(conflict, newProvider=None)
+			self.changeRoleInState(role, newProvider=providerName)
 		else:
-			self._state[providerName].remove(role)
-			self._state[None].add(role)
+			self.changeRoleInState(role, oldProvider=providerName, newProvider=None)
 		if evt:
 			self.providerList.CheckItem(self.providerList.Selection, bool(self.rolesList.Checked))
 			if isChecked:
@@ -2624,37 +2626,51 @@ class VisionProviderSelectionDialog(SettingsDialog):
 	def buildProvidersWithRolesString(self, differenceDict):
 		strings = []
 		for provider, roles in differenceDict.iteritems():
-			providerString = self.providerList.GetString(self.providerNames.index(provider))
-			roleStrings = [vision.ROLE_DESCRIPTIONS[role] for role in roles]
-			if len(roleStrings) == 1:
-				# Translators: Displayed in a warning when a provider is enabled/disabled for one or more roles.
-				strings.append(_("{provider} as {role{").format(
-					provider=providerString,
-					role=roleStrings[0]
-				))
+			index = self.providerNames.index(provider)
+			providerString = self.providerList.GetString(index)
+			if len(self.providerSupportedRolesList[index]) == 1:
+				# This provider supports only one role, only mention the provider without its roles.
+				strings.append(providerString)
 			else:
-				# Translators: Displayed in a warning when a provider is enabled/disabled for multiple roles.
-				strings.append(_("{provider} as {roles{ and {lastRole}").format(
-					provider=providerString,
-					roles=", ".join(roleStrings[:-1]),
-					lastRole=roles[-1]
-				))
+				roleStrings = [vision.ROLE_DESCRIPTIONS[role] for role in roles]
+				if len(roleStrings) == 1:
+					# Translators: Displayed in a warning when a provider is enabled/disabled for one or more roles.
+					strings.append(_("{provider} as {role}").format(
+						provider=providerString,
+						role=roleStrings[0]
+					))
+				else:
+					# Translators: Displayed in a warning when a provider is enabled/disabled for multiple roles.
+					strings.append(_("{provider} as {roles} and {lastRole}").format(
+						provider=providerString,
+						roles=", ".join(roleStrings[:-1]),
+						lastRole=roleStrings[-1]
+					))
 		# Translators: The word "and" in a list of items, e.g. in one and two.
 		return _(" and ").join(strings)
 
 	def evaluatePossibleConflicts(self):
-		enabled = {name: self._oldState[name] & self._state[name] for name in self._state if name}
-		disabled = {name: self._oldState[name] - self._state[name] for name in self._state if name}
-		if enabled and disabled:
+		enabledDict = dict()
+		disabledDict = dict()
+		for name in self._state:
+			if not name:
+				continue
+			disabled = self._oldState[name] - self._state[name]
+			if disabled:
+				disabledDict[name] = disabled
+			enabled = self._state[name] - self._oldState[name]
+			if enabled:
+				enabledDict[name] = enabled
+		if disabledDict:
 			# Translators: A message to warn the user that checking a provider or role
 			# caused a conflict
 			message = _(
-				"You are about to enable {enabledProvidersWithRoles}\n."
-				"You are about to enable {disableProvidersWithRoles}\n."
+				"You are about to enable {enabledProvidersWithRoles}.\n"
+				"This will disable {disabledProvidersWithRoles}.\n"
 				"Would you like to continue?"
 			).format(
-				enabledProvidersWithRoles=self.buildProvidersWithRolesString(enabled),
-				disabledProvidersWithRoles=self.buildProvidersWithRolesString(disabled)
+				enabledProvidersWithRoles=self.buildProvidersWithRolesString(enabledDict),
+				disabledProvidersWithRoles=self.buildProvidersWithRolesString(disabledDict)
 			)
 			if gui.messageBox(
 				message,
