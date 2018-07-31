@@ -259,7 +259,8 @@ class Magnifier(VisionEnhancementProvider):
 		"""Tracks the magnifier to the given point.
 		The base implementation creates a rectangle from a point and tracks to that rectangle."""
 		x, y = point
-		self.trackToRectangle((x, y, x+1, y+1), context=context, area=area)
+		rect = RectLTRB(x, y, x+1, y+1)
+		self.trackToRectangle((rect), context=context, area=area)
 
 	_abstract_magnificationLevel = True
 	def _get_magnificationLevel(self):
@@ -267,6 +268,12 @@ class Magnifier(VisionEnhancementProvider):
 
 	def _set_magnificationLevel(self, level):
 		raise NotImplementedError
+
+	def _get_isMagnifying(self):
+		"""Returns C{True} if the magnifier is magnifying the screen, C{False} otherwise.
+		By default, this property is based on L{enabled} and L{magnificationLevel}
+		"""
+		return self.enabled and self.magnificationLevel > 1.0
 
 class ColorTransformation(
 	collections.namedtuple("ColorTransformation", ("name", "description", "value"))
@@ -359,7 +366,7 @@ class VisionHandler(AutoPropertyObject):
 		for name, roles in configuredProviders.iteritems():
 			if name:
 				wx.CallAfter(self.setProvider, name, *roles)
-		config.configProfileSwitched.register(self.handleConfigProfileSwitch)
+		config.post_configProfileSwitch.register(self.handleConfigProfileSwitch)
 
 	def terminateProviderForRole(self, role):
 		curProvider = getattr(self, role)
@@ -413,8 +420,8 @@ class VisionHandler(AutoPropertyObject):
 		try:
 			conflicts = {name for name in (getattr(self, role) for role in providerCls.conflictingRoles) if name}
 			if conflicts:
-				raise RuntimeError("This provider couldn't be activated because of conflicts with provider(s) %s." %
-					", ".join(conflict.name for conflict in conflicts)
+				raise RuntimeError("Provider %s couldn't be activated because of conflicts with provider(s) %s." %
+					(providerCls.name, ", ".join(conflict.name for conflict in conflicts))
 				)
 
 			# Providers are singletons.
@@ -453,7 +460,7 @@ class VisionHandler(AutoPropertyObject):
 		return bool(self.initializedProviders)
 
 	def terminate(self):
-		config.configProfileSwitched.unregister(self.handleConfigProfileSwitch)
+		config.post_configProfileSwitch.unregister(self.handleConfigProfileSwitch)
 		for role in ROLE_TO_CLASS_MAP.iterkeys():
 			self.terminateProviderForRole(role)
 
@@ -462,7 +469,7 @@ class VisionHandler(AutoPropertyObject):
 			return
 		if obj is api.getFocusObject():
 			context = CONTEXT_FOCUS
-			if self.magnifier and self.magnifier.enabled:
+			if self.magnifier and self.magnifier.isMagnifying:
 				self.magnifier.trackToObject(obj, context=context)
 			if self.highlighter and self.highlighter.enabled and context in self.highlighter.supportedContexts:
 				self.highlighter.updateContextRect(context, obj=obj)
@@ -471,14 +478,14 @@ class VisionHandler(AutoPropertyObject):
 
 	def handleForeground(self, obj):
 		context = CONTEXT_FOREGROUND
-		if self.magnifier and self.magnifier.enabled:
+		if self.magnifier and self.magnifier.isMagnifying:
 			self.magnifier.trackToObject(obj, context=context)
 		if self.highlighter and self.highlighter.enabled and context in self.highlighter.supportedContexts:
 			self.highlighter.updateContextRect(context, obj=obj)
 
 	def handleGainFocus(self, obj):
 		context = CONTEXT_FOCUS
-		if self.magnifier and self.magnifier.enabled:
+		if self.magnifier and self.magnifier.isMagnifying:
 			self.magnifier.trackToObject(obj, context=context)
 		if self.highlighter and self.highlighter.enabled:
 			if context in self.highlighter.supportedContexts:
@@ -505,7 +512,7 @@ class VisionHandler(AutoPropertyObject):
 			return
 		context = CONTEXT_CARET
 		try:
-			if self.magnifier and self.magnifier.enabled:
+			if self.magnifier and self.magnifier.isMagnifying:
 				self.magnifier.trackToObject(obj, context=context)
 			if self.highlighter and self.highlighter.enabled and context in self.highlighter.supportedContexts:
 				self.highlighter.updateContextRect(context, obj=obj)
@@ -523,7 +530,7 @@ class VisionHandler(AutoPropertyObject):
 			return
 		lastReviewMoveContext = self.lastReviewMoveContext
 		self.lastReviewMoveContext = None
-		if lastReviewMoveContext in (CONTEXT_NAVIGATOR, CONTEXT_REVIEW) and self.magnifier and self.magnifier.enabled:
+		if lastReviewMoveContext in (CONTEXT_NAVIGATOR, CONTEXT_REVIEW) and self.magnifier and self.magnifier.isMagnifying:
 			self.magnifier.trackToObject(context=lastReviewMoveContext)
 		if self.highlighter and self.highlighter.enabled:
 			for context in (CONTEXT_NAVIGATOR, CONTEXT_REVIEW):
@@ -532,7 +539,7 @@ class VisionHandler(AutoPropertyObject):
 
 	def handleMouseMove(self, obj, x, y):
 		# Mouse moves execute once per core cycle.
-		if self.magnifier and self.magnifier.enabled:
+		if self.magnifier and self.magnifier.isMagnifying:
 			self.magnifier.trackToPoint((x, y), context=CONTEXT_MOUSE)
 
 	def handleConfigProfileSwitch(self):

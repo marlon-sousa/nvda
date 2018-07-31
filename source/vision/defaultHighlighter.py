@@ -2,7 +2,7 @@
 #A part of NonVisual Desktop Access (NVDA)
 #This file is covered by the GNU General Public License.
 #See the file COPYING for more details.
-#Copyright (C) 2018 NV Access Limited, Babbage B.V.
+#Copyright (C) 2018 NV Access Limited, Babbage B.V., Takuya Nishimoto
 
 """Default highlighter based on wx."""
 
@@ -22,10 +22,11 @@ class DefaultHighlighter(Highlighter):
 	# Translators: Description for NVDA's built-in screen highlighter.
 	description = _("Default Highlighter")
 	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
-	_contextColors = {
-		CONTEXT_FOCUS: wx.RED,
-		CONTEXT_NAVIGATOR: wx.BLUE,
-		CONTEXT_CARET: wx.GREEN,
+	_contextStyles = {
+		# context: (color, width, style)
+		CONTEXT_FOCUS: (wx.Colour(0xff, 0xff, 0x00, 0x00), 6, wx.PENSTYLE_SOLID),
+		CONTEXT_NAVIGATOR: (wx.Colour(0xff, 0x00, 0xff, 0x00), 4, wx.PENSTYLE_SOLID),
+		CONTEXT_CARET: (wx.Colour(0x00, 0xff, 0xff, 0x00), 1, wx.PENSTYLE_SOLID),
 	}
 	_highlightMargin = 15
 	_refreshInterval = 250
@@ -72,7 +73,7 @@ class DefaultHighlighter(Highlighter):
 			rect = self.contextToRectMap.get(context)
 			if not rect:
 				continue
-			dc.SetPen(wx.Pen(self._contextColors[context], 4))
+			dc.SetPen(wx.ThePenList.FindOrCreatePen(*self._contextStyles[context]))
 			rect = rect.expandOrShrink(self._highlightMargin).toClient(window.Handle).toLogical(window.Handle)
 			if context == CONTEXT_CARET:
 				if self._currentCaretIsVirtual:
@@ -111,4 +112,5 @@ class HighlightWindow(wx.Frame):
 		winUser.SetLayeredWindowAttributes(self.Handle, 0, self.transparency, winUser.LWA_ALPHA | winUser.LWA_COLORKEY)
 		self.Bind(wx.EVT_PAINT, highlighter.onPaint)
 		self.Disable()
-		self.Show()
+		# Calling Show too quickly after Disable causes Disable to fail sometimes.
+		wx.CallAfter(self.Show)

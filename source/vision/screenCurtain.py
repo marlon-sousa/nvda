@@ -24,11 +24,13 @@ class WinMagnificationScreenCurtain(ColorEnhancer):
 	"""Screen curtain implementation based on the windows magnification API.
 	This is only supported on Windows 8 and abbove."""
 	name = "screenCurtain"
+	# Translators: Description of a vision enhancement provider that disables output to the screen,
+	# making it black.
 	description = _("Screen Curtain")
 	supportedTransformations = (
 		ColorTransformation("black", pgettext('color hue','black'), TRANSFORM_BLACK),
 		# Translators: The state when the screen curtain is disabled.
-		ColorTransformation("default", _("disabled"), TRANSFORM_BLACK)
+		ColorTransformation("default", _("disabled"), TRANSFORM_DEFAULT)
 	)
 	conflictingRoles = frozenset([ROLE_MAGNIFIER, ROLE_HIGHLIGHTER])
 

@@ -2246,6 +2246,9 @@ class BrailleDisplaySelectionDialog(SettingsDialog):
 			port = self.possiblePorts[self.portsList.GetSelection()][0]
 			config.conf["braille"][display]["port"] = port
 		if not braille.handler.setDisplayByName(display):
+			# Translators: This message is presented when
+			# NVDA is unable to load the selected
+			# braille display.
 			gui.messageBox(_("Could not load the %s display.")%display, _("Braille Display Error"), wx.OK|wx.ICON_WARNING, self)
 			return 
 
@@ -2500,7 +2503,7 @@ class VisionSettingsPanel(SettingsPanel):
 		pass
 
 class VisionProviderSelectionDialog(SettingsDialog):
-	# Translators: This is the label for the braille provider selection dialog.
+	# Translators: This is the label for the vision provider selection dialog.
 	title = _("Select Vision Providers")
 	availableRoles = tuple(role for role in vision.ROLE_TO_CLASS_MAP.iterkeys())
 
@@ -2516,13 +2519,13 @@ class VisionProviderSelectionDialog(SettingsDialog):
 	def makeSettings(self, settingsSizer):
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
-		# Translators: The label for a setting in braille settings to choose a vision enhancement provider.
+		# Translators: The label for a setting in vision settings to choose a vision enhancement provider.
 		providerLabelText = _("&Vision enhancement providers:")
 		self.providerList = sHelper.addLabeledControl(providerLabelText, nvdaControls.CustomCheckListBox, choices=[])
 		self.providerList.Bind(wx.EVT_LISTBOX, self.onProviderSelected)
 		self.providerList.Bind(wx.EVT_CHECKLISTBOX, self.onProviderToggled)
 
-		# Translators: The label for a setting in braille settings to enable/disable the roles that should be enabled for vision enhancement providers.
+		# Translators: The label for a setting in vision settings to enable/disable the roles that should be enabled for vision enhancement providers.
 		rolesLabelText = _("&Use this provider as:")
 		self.rolesList = sHelper.addLabeledControl(rolesLabelText, nvdaControls.CustomCheckListBox, choices=[])
 		self.rolesList.Disable()
@@ -2548,6 +2551,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		self.providerList.SetItems(providerChoices)
 		self.syncProviderCheckboxes()
 		self.providerList.Select(0)
+		self.updateRoles()
 
 	def syncProviderCheckboxes(self):
 		self.providerList.Checked = [self.providerNames.index(name) for name, roles in self._state.iteritems() if name in self.providerNames and roles]
@@ -2600,7 +2604,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 			raise ValueError("Either evt or index should be provided")
 		if evt:
 			evt.Skip()
-			self._oldState.update(self._state)
+			self._oldState = deepcopy(self._state)
 			index = evt.Int
 		assert index is not None, "Index is None"
 		providerName = self.providerNames[self.providerList.Selection]
@@ -2612,6 +2616,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 				name = self.providerNames[item]
 				for conflict in self.providerConflictingRolesList[item]:
 					if conflict is role:
+						self._state[None] |= self._state[name]
 						self._state[name].clear()
 					else:
 						self.changeRoleInState(conflict, newProvider=None)
@@ -2688,11 +2693,12 @@ class VisionProviderSelectionDialog(SettingsDialog):
 			# The list of providers has not been populated yet, so we didn't change anything in this panel
 			return
 
-		setProviders = defaultdict(set)
-		for role, name in self._state.iteritems():
-			setProviders[name].add(role)
-		for name, roles in setProviders.iteritems():
-			if not vision.handler.setProvider(name, *roles):
+		log.error(self._state)
+		for name, roles in self._state.iteritems():
+			if roles and not vision.handler.setProvider(name, *roles):
+				# Translators: This message is presented when
+				# NVDA is unable to load selected
+				# vision enhancement provider.
 				gui.messageBox(_("Could not load the %s vision enhancement provider.")%name, _("Vision Enhancement Provider Error"), wx.OK|wx.ICON_WARNING, self)
 				return 
 
