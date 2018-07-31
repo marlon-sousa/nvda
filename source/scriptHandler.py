@@ -115,6 +115,14 @@ def findScript(gesture):
 		if func and getattr(func, 'canPropagate', False):
 			return func
 
+	# Vision enhancement provider level
+	import vision
+	for provider in vision.handler.initializedProviders:
+		if isinstance(provider, baseObject.ScriptableObject):
+			func = _getObjScript(provider, gesture, globalMapScripts)
+			if func:
+				return func
+
 	# Global commands.
 	func = _getObjScript(globalCommands.commands, gesture, globalMapScripts)
 	if func:
