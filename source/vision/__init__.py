@@ -386,13 +386,13 @@ class VisionHandler(AutoPropertyObject):
 			Supplied values should be one of the C{ROLE_*} constants.
 			If no roles are provided, the provider is enabled for all the roles it supports.
 		@type roles: str
-		@param isFallback: Whether the selected provider is enabled as a fallback.
+		@param temporary: Whether the selected provider is enabled temporarily (e.g. as a fallback).
 			Since this method uses a catch all handler for arguments,
 			this parameter should always be provided as a keyword argument.
-		@type isFallback: bool
+		@type temporary: bool
 		@raise RuntimeError: If a provider couldn't be loaded due to conflicts.
 		"""
-		isFallback = kwargs.pop("isFallback", False)
+		temporary = kwargs.pop("temporary", False)
 		if name in (None, "None"):
 			if not roles:
 				raise ValueError("No name and no roles provided")
@@ -401,14 +401,10 @@ class VisionHandler(AutoPropertyObject):
 					self.terminateProviderForRole(role)
 				except:
 					log.error("Couldn't terminate provider for role %s" % role)
-				if not isFallback:
+				if not temporary:
 					config.conf['vision'][role] = None
 			return True
-		for providerCls in _visionEnhancementProviders:
-			if name == providerCls.name:
-				break
-		else:
-			raise ValueError("Vision enhancement provider %s not registered" % name)
+		providerCls = getProviderCls(name)
 		if not roles:
 			roles = providerCls.supportedRoles
 		else:
@@ -442,12 +438,12 @@ class VisionHandler(AutoPropertyObject):
 			# Assign the new provider to the new roles.
 			for role in newRoles:
 				setattr(self, role, providerInst)
-				if not isFallback:
+				if not temporary:
 					config.conf['vision'][role] = providerCls.name
 			return True
 		except:
 			log.error("Error initializing vision enhancement provider %s for roles %s" % (name, ", ".join(roles)), exc_info=True)
-			self.setProvider(None, *roles, isFallback=True)
+			self.setProvider(None, *roles, temporary=True)
 			return False
 
 	def _get_initializedProviders(self):
@@ -580,6 +576,13 @@ def unregisterProviderCls(providerCls):
 	"""
 	global _visionEnhancementProviders
 	_visionEnhancementProviders.remove(providerCls)
+
+def getProviderCls(name):
+	"""Returns a registered provider class with the specified name."""
+	try:
+		return next(providerCls for providerCls in _visionEnhancementProviders if providerCls.name == name)
+	except StopIteration:
+		raise ValueError("Vision enhancement provider %s not registered" % name)
 
 def terminate():
 	global handler

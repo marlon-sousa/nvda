@@ -6,7 +6,7 @@
 
 """Wrapper for the windows magnification library (magnification.dll)"""
 
-from ctypes import *
+from ctypes import Structure, windll, 
 from ctypes.wintypes import *
 from comtypes import GUID
 
@@ -34,14 +34,10 @@ class MAGTRANSFORM(Structure):
 class MAGCOLOREFFECT(Structure):
 	_fields_ = (("transform", c_float*5*5),)
 
-def magnificationErrCheckFactory(outputArguments=0):
-	def errCheck(result, func, args):
-		if result == 0:
-			return False
-		if outputArguments>0:
-			return args[-1*outputArguments:]
-		return True
-	return errCheck
+def errCheck(result, func, args):
+	if result == 0:
+		return result
+	return args
 
 magnification = windll.magnification
 
@@ -80,38 +76,38 @@ MagSetFullscreenUseBitmapSmoothingFuncType = WINFUNCTYPE(BOOL, BOOL)
 MagSetFullscreenUseBitmapSmoothingArgTypes = ((1, "useSmoothing"),)
 
 Initialize = MagInitializeFuncType(("MagInitialize", magnification))
-Initialize.errcheck = magnificationErrCheckFactory()
+Initialize.errcheck = errCheck
 Uninitialize = MagUninitializeFuncType(("MagUninitialize", magnification))
-Uninitialize.errcheck = magnificationErrCheckFactory()
+Uninitialize.errcheck = errCheck
 SetWindowSource = MagSetWindowSourceFuncType(("MagSetWindowSource", magnification), MagSetWindowSourceArgTypes)
-SetWindowSource.errcheck = magnificationErrCheckFactory()
+SetWindowSource.errcheck = errCheck
 GetWindowSource = MagGetWindowSourceFuncType(("MagGetWindowSource", magnification), MagGetWindowSourceArgTypes)
-GetWindowSource.errcheck = magnificationErrCheckFactory(1)
+GetWindowSource.errcheck = errCheck
 SetWindowTransform = MagSetWindowTransformFuncType(("MagSetWindowTransform", magnification), )
-SetWindowTransform.errcheck = magnificationErrCheckFactory()
+SetWindowTransform.errcheck = errCheck
 GetWindowTransform = MagGetWindowTransformFuncType(("MagGetWindowTransform", magnification), MagGetWindowTransformArgTypes)
-GetWindowTransform.errcheck = magnificationErrCheckFactory(1)
+GetWindowTransform.errcheck = errCheck
 SetColorEffect = MagSetColorEffectFuncType(("MagSetColorEffect", magnification), MagSetColorEffectArgTypes)
-SetColorEffect.errcheck = magnificationErrCheckFactory()
+SetColorEffect.errcheck = errCheck
 GetColorEffect = MagGetColorEffectFuncType(("MagGetColorEffect", magnification), MagGetColorEffectArgTypes)
-GetColorEffect.errcheck = magnificationErrCheckFactory(1)
+GetColorEffect.errcheck = errCheck
 SetFullscreenTransform = MagSetFullscreenTransformFuncType(("MagSetFullscreenTransform", magnification), MagSetFullscreenTransformArgTypes)
-SetFullscreenTransform.errcheck = magnificationErrCheckFactory()
+SetFullscreenTransform.errcheck = errCheck
 GetFullscreenTransform = MagGetFullscreenTransformFuncType(("MagGetFullscreenTransform", magnification), MagGetFullscreenTransformArgTypes)
-GetFullscreenTransform.errcheck = magnificationErrCheckFactory(3)
+GetFullscreenTransform.errcheck = errCheck
 SetFullscreenColorEffect = MagSetFullscreenColorEffectFuncType(("MagSetFullscreenColorEffect", magnification), MagSetFullscreenColorEffectArgTypes )
-SetFullscreenColorEffect.errcheck = magnificationErrCheckFactory()
+SetFullscreenColorEffect.errcheck = errCheck
 GetFullscreenColorEffect = MagGetFullscreenColorEffectFuncType(("MagGetFullscreenColorEffect", magnification), MagGetFullscreenColorEffectArgTypes)
-GetFullscreenColorEffect.errcheck = magnificationErrCheckFactory(1)
+GetFullscreenColorEffect.errcheck = errCheck
 ShowSystemCursor = MagShowSystemCursorFuncType(("MagShowSystemCursor", magnification), MagShowSystemCursorArgTypes)
-ShowSystemCursor.errcheck = magnificationErrCheckFactory()
+ShowSystemCursor.errcheck = errCheck
 try:
 	SetFullscreenUseBitmapSmoothing = MagSetFullscreenUseBitmapSmoothingFuncType(("MagSetFullscreenUseBitmapSmoothing", magnification), MagSetFullscreenUseBitmapSmoothingArgTypes)
-	SetFullscreenUseBitmapSmoothing.errcheck = magnificationErrCheckFactory()
+	SetFullscreenUseBitmapSmoothing.errcheck = errCheck
 except AttributeError:
 	SetFullscreenUseBitmapSmoothing = lambda HWND, useSmoothing: False
 try:
 	SetLensUseBitmapSmoothing = MagSetLensUseBitmapSmoothingFuncType(("MagSetLensUseBitmapSmoothing", magnification), MagSetLensUseBitmapSmoothingArgTypes)
-	SetLensUseBitmapSmoothing.errcheck = magnificationErrCheckFactory()
+	SetLensUseBitmapSmoothing.errcheck = errCheck
 except AttributeError:
 	SetLensUseBitmapSmoothing = lambda useSmoothing: False

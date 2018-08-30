@@ -2178,6 +2178,11 @@ class GlobalCommands(ScriptableObject):
 	# Translators: Describes a command.
 	script_recognizeWithUwpOcr.__doc__ = _("Recognizes the content of the current navigator object with Windows 10 OCR")
 
+	def script_toggleScreenCurtain(self, gesture):
+		pass
+	# Translators: Describes a command.
+	script_toggleScreenCurtain.__doc__ = _("Toggles the state of the screen curtain, either hiding or viewing the contents of the screen")
+
 	__gestures = {
 		# Basic
 		"kb:NVDA+n": "showGui",
