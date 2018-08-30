@@ -433,6 +433,8 @@ class VisionHandler(AutoPropertyObject):
 			# Properly terminate  conflicting providers.
 			for conflict in newRoles:
 				self.terminateProviderForRole(conflict)
+				if not temporary:
+					config.conf['vision'][conflict] = None
 			# Initialize the provider for the new and overlapping roles
 			providerInst.__init__(*roles)
 			# Assign the new provider to the new roles.
