@@ -6,8 +6,8 @@
 
 """Wrapper for the windows magnification library (magnification.dll)"""
 
-from ctypes import Structure, windll, 
-from ctypes.wintypes import *
+from ctypes import Structure, windll, byref, c_int, c_float, POINTER, WINFUNCTYPE
+from ctypes.wintypes import BOOL, HWND, RECT, DWORD
 from comtypes import GUID
 
 MS_SHOWMAGNIFIEDCURSOR = 0x0001
