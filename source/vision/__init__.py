@@ -17,17 +17,17 @@ using L{registerProviderCls}.
 import config
 from baseObject import AutoPropertyObject
 from abc import abstractmethod
-import collections
 import api
 import config
 import weakref
 from logHandler import log
 import wx
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import textInfos
 import NVDAObjects
 import winVersion
 from locationHelper import RectLTRB
+from synthDriverHandler import StringParameterInfo
 
 CONTEXT_UNDETERMINED = "undetermined"
 CONTEXT_FOCUS = "focus"
@@ -52,6 +52,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 	#: It does not make sense to magnify the screen or use a highlighter.
 	conflictingRoles = frozenset()
 	_instance = None
+	guiPanel = None
 
 	@classmethod
 	def check(cls):
@@ -275,23 +276,14 @@ class Magnifier(VisionEnhancementProvider):
 		"""
 		return self.enabled and self.magnificationLevel > 1.0
 
-class ColorTransformation(
-	collections.namedtuple("ColorTransformation", ("name", "description", "value"))
-):
+class ColorTransformationInfo(StringParameterInfo):
 	"""Represents a color transformation.
-	@ivar name: The name of the transformation.
-		This name is used in the configuration specification.
-		Example: "grayScale"
-	@type name: str
-	@ivar description: A translatable description of the transformation.
-		This is reported in the GUI as well as when toggling transformations with gestures.
-		Example: _("Gray scale"
-	@type description: _(str)
-	@ivar value: A L{ColorEnhancer} specific value used to apply the transformation.
-		This could be of any type (e.g. a color transformation matrix).
-	@type value: object
 	"""
-	__slots__ = ()
+
+	def __init__(self,ID,name,value):
+		#: The value that cointains the color transformation info (e.g. a matrix).
+		self.value=value
+		super(ColorTransformationInfo,self).__init__(ID,name)
 
 class ColorEnhancer(VisionEnhancementProvider):
 
@@ -307,12 +299,15 @@ class ColorEnhancer(VisionEnhancementProvider):
 		Subclasses must extend this method.
 		"""
 
-	_abstract_supportedTransformations = True
-	def _get_supportedTransformations(self):
+	@abstractmethod
+	def _getAvailableTransformations(self):
 		"""Returns the color transformations supported by this color enhancer.
-		@rtype: L{ColorTransformation}
+		@rtype: [L{ColorTransformationInfo}]
 		"""
 		raise NotImplementedError
+
+	def _get_availableTransformations(self):
+		return OrderedDict((info.ID,info) for info in self._getAvailableTransformations())
 
 	_abstract_transformation = True
 	def _get_transformation(self):
