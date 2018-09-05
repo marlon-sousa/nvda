@@ -155,7 +155,7 @@ def initConfigPath(configPath=None):
 		if not os.path.isdir(subdir):
 			os.makedirs(subdir)
 
-RUN_REGKEY = ur"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+RUN_REGKEY = ur"Software\microsoft\windows\currentversion\run"
 
 def getStartAfterLogon():
 	if (easeOfAccess.isSupported and easeOfAccess.canConfigTerminateOnDesktopSwitch

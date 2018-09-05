@@ -33,7 +33,7 @@ import braille
 import brailleTables
 import brailleInput
 import vision
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from copy import deepcopy
 import core
 import keyboardHandler
@@ -2441,6 +2441,8 @@ class VisionSettingsPanel(SettingsPanel):
 	title = _("Vision")
 
 	def makeSettings(self, settingsSizer):
+		self.currentProviders = OrderedDict()
+		self.providerPanelInstances = []
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		# Translators: A label for the currently active vision enhancement providers on the vision panel.
 		providersLabel = _("Current vision enhancement providers")
@@ -2449,7 +2451,7 @@ class VisionSettingsPanel(SettingsPanel):
 		providersGroup = guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(providersBox, wx.HORIZONTAL))
 		settingsSizerHelper.addItem(providersGroup)
 		self.providersCtrl = ExpandoTextCtrl(self, size=(self.scaleSize(250), -1), style=wx.TE_READONLY)
-		self.updateCurrentProviders()
+
 		# Translators: This is the label for the button used to change dvision enhancement providers,
 		# it appears in the context of a vision enhancement providers group on the vision settings panel.
 		changeProvidersBtn = wx.Button(self, label=_("C&hange..."))
@@ -2461,6 +2463,11 @@ class VisionSettingsPanel(SettingsPanel):
 		)
 		self.providersCtrl.Bind(wx.EVT_CHAR_HOOK, self._enterTriggersOnChangeProviders)
 		changeProvidersBtn.Bind(wx.EVT_BUTTON,self.onChangeProviders)
+
+		self.providerPanelsSizer=wx.BoxSizer(wx.VERTICAL)
+		settingsSizerHelper.addItem(self.providerPanelsSizer)
+
+		self.updateCurrentProviders()
 
 	def _enterTriggersOnChangeProviders(self, evt):
 		if evt.KeyCode == wx.WXK_RETURN:
@@ -2479,28 +2486,47 @@ class VisionSettingsPanel(SettingsPanel):
 			self.Thaw()
 
 	def updateCurrentProviders(self):
-		currentProviders = {}
+		oldProviders = self.currentProviders.copy()
+		self.currentProviders.clear()
+		providersWithPanel = set()
+
 		for role, roleDesc in vision.ROLE_DESCRIPTIONS.iteritems():
 			provider = getattr(vision.handler, role, None)
 			if provider:
-				currentProviders[roleDesc]=provider.description
-		currentProvidersStr = ("\n".join("{}: {}".format(role, provider) for role, provider in currentProviders.iteritems()) or 
-			# Translators: Displayed in the current vision enhancement providers edit control,
-			# when no providers are active.
-			_("No active providers"))
-		self.providersCtrl.SetValue(currentProvidersStr)
+				self.currentProviders[roleDesc]=provider.description
+				if provider.guiPanelCls:
+					providersWithPanel.add(provider)
+		if not oldProviders or self.currentProviders != oldProviders:
+			currentProvidersStr = ("\n".join("{}: {}".format(role, provider) for role, provider in self.currentProviders.iteritems()) or 
+				# Translators: Displayed in the current vision enhancement providers edit control,
+				# when no providers are active.
+				_("No active providers"))
+			self.providersCtrl.SetValue(currentProvidersStr)
+			self.providerPanelsSizer.Clear(delete_windows=True)
+			self.providerPanelInstances[:] = []
+			for index, provider in enumerate(providersWithPanel):
+				if index > 0:
+					self.providerPanelsSizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
+				panelSizer = wx.StaticBoxSizer(wx.StaticBox(self, label=provider.description), wx.VERTICAL)
+				panel = provider.guiPanelCls(self)
+				panelSizer.Add(panel)
+				self.providerPanelsSizer.Add(panelSizer)
+				self.providerPanelInstances.append(panel)
 
 	def onPanelActivated(self):
+		self.updateCurrentProviders()
 		super(VisionSettingsPanel,self).onPanelActivated()
 
 	def onPanelDeactivated(self):
 		super(VisionSettingsPanel,self).onPanelDeactivated()
 
 	def onDiscard(self):
-		pass
+		for panel in self.providerPanelInstances:
+			panel.onDiscard()
 
 	def onSave(self):
-		pass
+		for panel in self.providerPanelInstances:
+			panel.onSave()
 
 class VisionProviderSelectionDialog(SettingsDialog):
 	# Translators: This is the label for the vision provider selection dialog.

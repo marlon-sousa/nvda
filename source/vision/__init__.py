@@ -34,7 +34,7 @@ CONTEXT_FOCUS = "focus"
 CONTEXT_FOREGROUND = "foreground"
 CONTEXT_CARET = "caret"
 CONTEXT_REVIEW = "review"
-CONTEXT_NAVIGATOR = "navigator"
+CONTEXT_NAVIGATOR = "navigatorObj"
 CONTEXT_MOUSE = "mouse"
 
 ROLE_MAGNIFIER = "magnifier"
@@ -52,7 +52,8 @@ class VisionEnhancementProvider(AutoPropertyObject):
 	#: It does not make sense to magnify the screen or use a highlighter.
 	conflictingRoles = frozenset()
 	_instance = None
-	guiPanel = None
+	guiPanelCls = None
+	cachePropertiesByDefault = True
 
 	@classmethod
 	def check(cls):
@@ -350,6 +351,7 @@ def getProviderList(excludeNegativeChecks=True):
 	return providerList
 
 class VisionHandler(AutoPropertyObject):
+	cachePropertiesByDefault = True
 
 	def __init__(self):
 		self.lastReviewMoveContext = None
@@ -547,8 +549,8 @@ def initialize():
 	if (winVersion.winVersion.major, winVersion.winVersion.minor) >= (6, 2):
 		from screenCurtain import WinMagnificationScreenCurtain as ScreenCurtain
 		registerProviderCls(ScreenCurtain)
-	from defaultHighlighter import DefaultHighlighter
-	registerProviderCls(DefaultHighlighter)
+	from NVDAHighlighter import NVDAHighlighter
+	registerProviderCls(NVDAHighlighter)
 	global handler
 	handler = VisionHandler()
 

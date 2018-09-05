@@ -1,4 +1,4 @@
-#vision/defaultHighlighter.py
+#vision/NVDAHighlighter.py
 #A part of NonVisual Desktop Access (NVDA)
 #This file is covered by the GNU General Public License.
 #See the file COPYING for more details.
@@ -16,11 +16,13 @@ from logHandler import log
 from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
 import cursorManager
 from locationHelper import RectLTRB
+import config
+from gui.settingsDialogs import SettingsPanel
 
-class DefaultHighlighter(Highlighter):
-	name = "defaultHighlighter"
+class NVDAHighlighter(Highlighter):
+	name = "NVDAHighlighter"
 	# Translators: Description for NVDA's built-in screen highlighter.
-	description = _("Default Highlighter")
+	description = _("NVDA Highlighter")
 	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
 	_contextStyles = {
 		# context: (color, width, style)
@@ -31,6 +33,9 @@ class DefaultHighlighter(Highlighter):
 	_highlightMargin = 15
 	_refreshInterval = 250
 
+	def _get_enabledContexts(self):
+		return tuple(context for context in self.supportedContexts if config.conf['vision'][self.name]['highlight%s' % (context[0].upper()+context[1:])])
+
 	def _get__currentCaretIsVirtual(self):
 		return isinstance(api.getCaretObject(), cursorManager.CursorManager)
 
@@ -40,7 +45,7 @@ class DefaultHighlighter(Highlighter):
 		super(Highlighter, self).__init__(*roles)
 
 	def initializeHighlighter(self):
-		super(DefaultHighlighter, self).initializeHighlighter()
+		super(NVDAHighlighter, self).initializeHighlighter()
 		self.window = HighlightWindow(self)
 		self._refreshTimer = gui.NonReEntrantTimer(self.refresh)
 		self._refreshTimer.Start(self._refreshInterval)
@@ -52,10 +57,10 @@ class DefaultHighlighter(Highlighter):
 		if self.window:
 			self.window.Destroy()
 			self.window = None
-		super(DefaultHighlighter, self).terminateHighlighter()
+		super(NVDAHighlighter, self).terminateHighlighter()
 
 	def updateContextRect(self, context, rect=None, obj=None):
-		super(DefaultHighlighter, self).updateContextRect(context, rect, obj)
+		super(NVDAHighlighter, self).updateContextRect(context, rect, obj)
 		self.refresh()
 
 	def refresh(self):
@@ -69,7 +74,7 @@ class DefaultHighlighter(Highlighter):
 		dc.SetBackground(wx.TRANSPARENT_BRUSH)
 		dc.Clear()
 		dc.SetBrush(wx.TRANSPARENT_BRUSH)
-		for context in self.supportedContexts:
+		for context in self.enabledContexts:
 			rect = self.contextToRectMap.get(context)
 			if not rect:
 				continue
@@ -114,3 +119,27 @@ class HighlightWindow(wx.Frame):
 		self.Disable()
 		# Calling Show too quickly after Disable causes Disable to fail sometimes.
 		wx.CallAfter(self.Show)
+
+class NVDAHighlighterSettingsPanel(SettingsPanel):
+
+	def makeSettings(self, sizer):
+		sHelper = gui.guiHelper.BoxSizerHelper(self, sizer=sizer)
+		# Translators: This is the label for a checkbox in the
+		# default highlighter settings panel to enable highlighting the focus.
+		self.highlightFocusCheckBox=sHelper.addItem(wx.CheckBox(self,label=_("Highlight &focus")))
+		self.highlightFocusCheckBox.SetValue(config.conf['vision'][NVDAHighlighter.name]["highlightFocus"])
+		# Translators: This is the label for a checkbox in the
+		# default highlighter settings panel to enable highlighting the navigator object.
+		self.highlightNavigatorObjCheckBox=sHelper.addItem(wx.CheckBox(self,label=_("Highlight &navigator object")))
+		self.highlightNavigatorObjCheckBox.SetValue(config.conf['vision'][NVDAHighlighter.name]["highlightNavigatorObj"])
+		# Translators: This is the label for a checkbox in the
+		# default highlighter settings panel to enable highlighting the virtual caret (such as in browse mode).
+		self.highlightCaretCheckBox=sHelper.addItem(wx.CheckBox(self,label=_("Follow &virtual caret")))
+		self.highlightCaretCheckBox.SetValue(config.conf['vision'][NVDAHighlighter.name]["highlightCaret"])
+
+	def onSave(self):
+		config.conf['vision'][NVDAHighlighter.name]["highlightFocus"]=self.highlightFocusCheckBox.IsChecked()
+		config.conf['vision'][NVDAHighlighter.name]["highlightNavigatorObj"]=self.highlightNavigatorObjCheckBox.IsChecked()
+		config.conf['vision'][NVDAHighlighter.name]["highlightCaret"]=self.highlightCaretCheckBox.IsChecked()
+
+NVDAHighlighter.guiPanelCls = NVDAHighlighterSettingsPanel
