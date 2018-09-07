@@ -17,27 +17,29 @@ from mouseHandler import getTotalWidthAndHeightAndMinimumPosition
 import cursorManager
 from locationHelper import RectLTRB
 import config
+from collections import namedtuple
+
 from gui.settingsDialogs import SettingsPanel
+
+# Highlighter specific contexts
+#: Context for overlapping focus and navigator objects
+CONTEXT_FOCUS_NAVIGATOR = "focusNavigatorOverlap"
+
+class ContextStyle(namedtuple("ContextStyle", ("color", "width", "style", "margin"))):
+	pass
 
 class NVDAHighlighter(Highlighter):
 	name = "NVDAHighlighter"
 	# Translators: Description for NVDA's built-in screen highlighter.
 	description = _("NVDA Highlighter")
-	supportedContexts = frozenset([CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET])
+	supportedContexts = (CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET)
 	_contextStyles = {
-		# context: (color, width, style)
-		CONTEXT_FOCUS: (wx.Colour(0xff, 0xff, 0x00, 0x00), 6, wx.PENSTYLE_SOLID),
-		CONTEXT_NAVIGATOR: (wx.Colour(0xff, 0x00, 0xff, 0x00), 4, wx.PENSTYLE_SOLID),
-		CONTEXT_CARET: (wx.Colour(0x00, 0xff, 0xff, 0x00), 1, wx.PENSTYLE_SOLID),
+		CONTEXT_FOCUS: ContextStyle(wx.Colour(0x03, 0x36, 0xff, 0xff), 5, wx.PENSTYLE_SHORT_DASH, 5),
+		CONTEXT_NAVIGATOR: ContextStyle(wx.Colour(0xff, 0x02, 0x66, 0xff), 5, wx.PENSTYLE_SOLID, 5),
+		CONTEXT_FOCUS_NAVIGATOR: ContextStyle(wx.Colour(0x03, 0x36, 0xff, 0xff), 5, wx.PENSTYLE_SOLID, 5),
+		CONTEXT_CARET: ContextStyle(wx.Colour(0xff, 0xde, 0x03, 0xff), 2, wx.PENSTYLE_SOLID, 0),
 	}
-	_highlightMargin = 15
-	_refreshInterval = 250
-
-	def _get_enabledContexts(self):
-		return tuple(context for context in self.supportedContexts if config.conf['vision'][self.name]['highlight%s' % (context[0].upper()+context[1:])])
-
-	def _get__currentCaretIsVirtual(self):
-		return isinstance(api.getCaretObject(), cursorManager.CursorManager)
+	_refreshInterval = 150
 
 	def __init__(self, *roles):
 		self.window = None
@@ -74,39 +76,41 @@ class NVDAHighlighter(Highlighter):
 		dc.SetBackground(wx.TRANSPARENT_BRUSH)
 		dc.Clear()
 		dc.SetBrush(wx.TRANSPARENT_BRUSH)
-		for context in self.enabledContexts:
+		contextRects = {}
+		for context in self.supportedContexts:
+			if not config.conf['vision'][self.name]['highlight%s' % (context[0].upper() + context[1:])]:
+				continue
 			rect = self.contextToRectMap.get(context)
 			if not rect:
 				continue
-			dc.SetPen(wx.ThePenList.FindOrCreatePen(*self._contextStyles[context]))
-			rect = rect.expandOrShrink(self._highlightMargin).toClient(window.Handle).toLogical(window.Handle)
+			if context == CONTEXT_CARET and not isinstance(api.getCaretObject(), cursorManager.CursorManager):
+				# Non virtual carets are currently not supported
+				continue
+			elif context == CONTEXT_NAVIGATOR and contextRects.get(CONTEXT_FOCUS) == rect:
+				# Focus is in contextRects, because rect can't be Noone here.
+				contextRects.pop(CONTEXT_FOCUS)
+				context = CONTEXT_FOCUS_NAVIGATOR
+			contextRects[context] = rect
+		for context, rect in contextRects.items():
+			contextStyle = self._contextStyles[context]
+			dc.SetPen(wx.ThePenList.FindOrCreatePen(contextStyle.color, contextStyle.width, contextStyle.style))
+			try:
+				rect = rect.expandOrShrink(contextStyle.margin).toClient(window.Handle).toLogical(window.Handle)
+			except RuntimeError:
+				pass
 			if context == CONTEXT_CARET:
-				if self._currentCaretIsVirtual:
-					dc.DrawLine(rect.right, rect.top, rect.right, rect.bottom)
+				dc.DrawLine(rect.right, rect.top, rect.right, rect.bottom)
 			else:
 				dc.DrawRectangle(*rect.toLTWH())
 
 class HighlightWindow(wx.Frame):
-	transparency = 0xC0
+	transparency = 0xff
 
 	def updateLocationForDisplays(self):
 		displays = [ wx.Display(i).GetGeometry() for i in xrange(wx.Display.GetCount()) ]
 		screenWidth, screenHeight, minPos = getTotalWidthAndHeightAndMinimumPosition(displays)
 		self.SetPosition(minPos)
-		self.SetSize(self.scaleSize((screenWidth, screenHeight)))
-
-	@property
-	def scaleFactor(self):
-		import windowUtils
-		return windowUtils.getWindowScalingFactor(self.Handle)
-
-	def scaleSize(self, size):
-		"""Helper method to scale a size using the logical DPI
-		@param size: The size (x,y) as a tuple or a single numerical type to scale
-		@returns: The scaled size, returned as the same type"""
-		if isinstance(size, tuple):
-			return (self.scaleFactor * size[0], self.scaleFactor * size[1])
-		return self.scaleFactor * size
+		self.SetSize((screenWidth, screenHeight))
 
 	def __init__(self, highlighter):
 		super(HighlightWindow, self).__init__(gui.mainFrame, style=wx.NO_BORDER | wx.STAY_ON_TOP | wx.FULL_REPAINT_ON_RESIZE | wx.FRAME_NO_TASKBAR)
@@ -116,9 +120,8 @@ class HighlightWindow(wx.Frame):
 		winUser.setExtendedWindowStyle(self.Handle, exstyle)
 		winUser.SetLayeredWindowAttributes(self.Handle, 0, self.transparency, winUser.LWA_ALPHA | winUser.LWA_COLORKEY)
 		self.Bind(wx.EVT_PAINT, highlighter.onPaint)
-		self.Disable()
-		# Calling Show too quickly after Disable causes Disable to fail sometimes.
-		wx.CallAfter(self.Show)
+		self.ShowWithoutActivating()
+		wx.CallAfter(self.Disable)
 
 class NVDAHighlighterSettingsPanel(SettingsPanel):
 
@@ -134,7 +137,7 @@ class NVDAHighlighterSettingsPanel(SettingsPanel):
 		self.highlightNavigatorObjCheckBox.SetValue(config.conf['vision'][NVDAHighlighter.name]["highlightNavigatorObj"])
 		# Translators: This is the label for a checkbox in the
 		# default highlighter settings panel to enable highlighting the virtual caret (such as in browse mode).
-		self.highlightCaretCheckBox=sHelper.addItem(wx.CheckBox(self,label=_("Follow &virtual caret")))
+		self.highlightCaretCheckBox=sHelper.addItem(wx.CheckBox(self,label=_("Follow &browse mode caret")))
 		self.highlightCaretCheckBox.SetValue(config.conf['vision'][NVDAHighlighter.name]["highlightCaret"])
 
 	def onSave(self):

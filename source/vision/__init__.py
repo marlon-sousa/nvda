@@ -28,6 +28,7 @@ import NVDAObjects
 import winVersion
 from locationHelper import RectLTRB
 from synthDriverHandler import StringParameterInfo
+import textInfos
 
 CONTEXT_UNDETERMINED = "undetermined"
 CONTEXT_FOCUS = "focus"
@@ -115,7 +116,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 		elif context == CONTEXT_FOREGROUND:
 			return api.getForegroundObject()
 		elif context == CONTEXT_CARET:
-			return api.getCaretObject()
+			obj = api.getCaretObject()
 		elif context == CONTEXT_REVIEW:
 			return api.getReviewPosition().obj
 		elif context == CONTEXT_NAVIGATOR:
@@ -134,7 +135,7 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			obj = cls.getContextObject(context)
 		if not obj:
 			raise LookupError
-		if context == CONTEXT_CARET:
+		elif context == CONTEXT_CARET:
 			if isinstance(obj, NVDAObjects.NVDAObject):
 				# Import late to avoid circular import
 				from displayModel import getCaretRect
@@ -150,16 +151,23 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			except NotImplementedError:
 				# There is nothing to do here
 				raise LookupError
-			point = caretInfo.pointAtStart
-			return RectLTRB.fromPoint(point)
+			return cls._getRectFromTextInfo(caretInfo)
 		elif context == CONTEXT_REVIEW:
-			reviewInfo = api.getReviewPosition()
-			point = reviewInfo.pointAtStart
-			return RectLTRB.fromPoint(point)
+			return cls._getRectFromTextInfo(api.getReviewPosition())
 		location = obj.location
 		if not location:
 			raise LookupError
 		return location.toLTRB()
+
+	@classmethod
+	def _getRectFromTextInfo(cls, textInfo):
+		if textInfo.isCollapsed:
+			textInfo.expand(textInfos.UNIT_CHARACTER)
+		try:
+			rect = textInfo.boundingRect.toLTRB()
+		except (LookupError, NotImplementedError):
+			rect = RectLTRB.fromPoint(textInfo.pointAtStart)
+		return rect
 
 	def terminate(self, *roles):
 		"""Executed when terminating this provider.
@@ -178,8 +186,8 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			self.activeRoles.remove(role)
 
 class Highlighter(VisionEnhancementProvider):
-	#: Set of supported contexts for this highlighter.
-	supportedContexts = frozenset()
+	#: Tuple of supported contexts for this highlighter.
+	supportedContexts = tuple()
 
 	@abstractmethod
 	def initializeHighlighter(self):
@@ -446,7 +454,7 @@ class VisionHandler(AutoPropertyObject):
 			return False
 
 	def _get_initializedProviders(self):
-		return frozenset(
+		return tuple(
 			provider for provider in (self.magnifier, self.highlighter, self.colorEnhancer)
 			if provider
 		)
