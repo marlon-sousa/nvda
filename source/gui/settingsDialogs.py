@@ -5,6 +5,8 @@
 #This file is covered by the GNU General Public License.
 #See the file COPYING for more details.
 
+from abc import abstractmethod
+from six import with_metaclass
 import glob
 import os
 import copy
@@ -51,7 +53,7 @@ import weakref
 import time
 import keyLabels
 
-class SettingsDialog(wx.Dialog):
+class SettingsDialog(with_metaclass(guiHelper.SIPABCMeta, wx.Dialog)):
 	"""A settings dialog.
 	A settings dialog consists of one or more settings controls and OK and Cancel buttons and an optional Apply button.
 	Action may be taken in response to the OK, Cancel or Apply buttons.
@@ -163,6 +165,7 @@ class SettingsDialog(wx.Dialog):
 		else:
 			evt.Skip()
 
+	@abstractmethod
 	def makeSettings(self, sizer):
 		"""Populate the dialog with settings controls.
 		Subclasses must override this method.
@@ -216,7 +219,7 @@ class SettingsDialog(wx.Dialog):
 # redo the layout in whatever way makes sense for their particular content.
 _RWLayoutNeededEvent, EVT_RW_LAYOUT_NEEDED = wx.lib.newevent.NewCommandEvent()
 
-class SettingsPanel(wx.Panel):
+class SettingsPanel(with_metaclass(guiHelper.SIPABCMeta, wx.Panel)):
 	"""A settings panel, to be used in a multi category settings dialog.
 	A settings panel consists of one or more settings controls.
 	Action may be taken in response to the parent dialog's OK or Cancel buttons.
@@ -255,6 +258,7 @@ class SettingsPanel(wx.Panel):
 		if gui._isDebug():
 			log.debug("Loading %s took %.2f seconds"%(self.__class__.__name__, time.time() - startTime))
 
+	@abstractmethod
 	def makeSettings(self, sizer):
 		"""Populate the panel with settings controls.
 		Subclasses must override this method.
@@ -276,6 +280,7 @@ class SettingsPanel(wx.Panel):
 		"""
 		self.Hide()
 
+	@abstractmethod
 	def onSave(self):
 		"""Take action in response to the parent's dialog OK or apply button being pressed.
 		Sub-classes should override this method.
