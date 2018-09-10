@@ -2571,7 +2571,13 @@ class VisionProviderSelectionDialog(SettingsDialog):
 	def initializeEnhancementProviderLists(self):
 		self._state = defaultdict(set)
 		for role in self.availableRoles:
-			self._state[config.conf['vision'][role]].add(role)
+			providerName = config.conf['vision'][role]
+			# Make sure we do not evaluate conflicts for unregistered providers.
+			try:
+				vision.getProviderCls(providerName)
+				self._state[providerName].add(role)
+			except ValueError:
+				self._state[None].add(role)
 		self._oldState = deepcopy(self._state)
 		providerList = vision.getProviderList()
 		self.providerNames = [provider[0] for provider in providerList]
@@ -2579,7 +2585,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		self.providerSupportedRolesList = [provider[2] for provider in providerList]
 		self.providerConflictingRolesList = [provider[3] for provider in providerList]
 		self.providerList.Clear()
-		self.providerList.SetItems(providerChoices)
+		self.providerList.Items=providerChoices
 		self.syncProviderCheckboxes()
 		self.providerList.Select(0)
 		self.updateRoles()
@@ -2589,7 +2595,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 
 	def updateRoles(self):
 		providerRoles = self.providerSupportedRolesList[self.providerList.Selection]
-		self.rolesList.SetItems([vision.ROLE_DESCRIPTIONS[role] for role in providerRoles])
+		self.rolesList.Items=[vision.ROLE_DESCRIPTIONS[role] for role in providerRoles]
 		self.syncRoleCheckboxes()
 		self.rolesList.Enable(len(providerRoles)>1)
 
