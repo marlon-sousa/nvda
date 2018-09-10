@@ -2557,13 +2557,13 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		self.rolesList.Disable()
 		self.rolesList.Bind(wx.EVT_CHECKLISTBOX, self.onRoleToggled)
 
-		self.updateEnhancementProviderLists()
+		self.initializeEnhancementProviderLists()
 
 	def postInit(self):
 		# Finally, ensure that focus is on the list of providers.
 		self.providerList.SetFocus()
 
-	def updateEnhancementProviderLists(self):
+	def initializeEnhancementProviderLists(self):
 		self._state = defaultdict(set)
 		for role in self.availableRoles:
 			self._state[config.conf['vision'][role]].add(role)
@@ -2580,7 +2580,7 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		self.updateRoles()
 
 	def syncProviderCheckboxes(self):
-		self.providerList.Checked = [self.providerNames.index(name) for name, roles in self._state.iteritems() if name in self.providerNames and roles]
+		self.providerList.CheckedItems = [self.providerNames.index(name) for name, roles in self._state.iteritems() if name in self.providerNames and roles]
 
 	def updateRoles(self):
 		providerRoles = self.providerSupportedRolesList[self.providerList.Selection]
@@ -2591,19 +2591,15 @@ class VisionProviderSelectionDialog(SettingsDialog):
 	def syncRoleCheckboxes(self):
 		providerName = self.providerNames[self.providerList.Selection]
 		providerRoles = self.providerSupportedRolesList[self.providerList.Selection]
-		self.rolesList.Checked = [providerRoles.index(role) for role in self._state[providerName]]
+		self.rolesList.CheckedItems = [providerRoles.index(role) for role in self._state[providerName]]
 
 	def onProviderSelected(self, evt):
 		self.updateRoles()
 
-	def onProviderToggled(self, evt=None, index=None):
-		if (evt is None and index is None) or (evt is not None and index is not None):
-			raise ValueError("Either evt or index should be provided")
-		if evt:
-			self._oldState = deepcopy(self._state)
-			evt.Skip()
-			index = evt.Int
-		assert index is not None, "Index is None"
+	def onProviderToggled(self, evt):
+		self._oldState = deepcopy(self._state)
+		evt.Skip()
+		index = evt.Int
 		if index != self.providerList.Selection:
 			# Toggled an unselected provider
 			return
@@ -2615,10 +2611,10 @@ class VisionProviderSelectionDialog(SettingsDialog):
 			itemsToProcess.extend(item for item, role in enumerate(providerRoles)
 				if role not in self._state[providerName]
 			)
-			self.rolesList.Checked = itemsToProcess
+			self.rolesList.CheckedItems = itemsToProcess
 		else:
 			itemsToProcess.extend(providerRoles.index(role) for role in self._state[providerName])
-			self.rolesList.Checked = ()
+			self.rolesList.CheckedItems = ()
 		# Setting the checked state of items doesn't trigger EVT_CHECKLISTBOX.
 		for item in itemsToProcess:
 			self.onRoleToggled(index=item)
@@ -2638,19 +2634,19 @@ class VisionProviderSelectionDialog(SettingsDialog):
 		isChecked = self.rolesList.IsChecked(index)
 		if isChecked:
 			# Process conflicting roles
-			for item in self.providerList.Checked:
+			for item in self.providerList.CheckedItems:
 				name = self.providerNames[item]
 				for conflict in self.providerConflictingRolesList[item]:
 					if conflict is role:
 						self._state[None] |= self._state[name]
 						self._state[name].clear()
-					else:
+					elif conflict not in self.providerSupportedRolesList[self.providerList.Selection]:
 						self.changeRoleInState(conflict, newProvider=None)
 			self.changeRoleInState(role, newProvider=providerName)
 		else:
 			self.changeRoleInState(role, oldProvider=providerName, newProvider=None)
 		if evt:
-			self.providerList.CheckItem(self.providerList.Selection, bool(self.rolesList.Checked))
+			self.providerList.Check(self.providerList.Selection, bool(self.rolesList.Checked))
 			if isChecked:
 				self.evaluatePossibleConflicts()
 
@@ -2719,7 +2715,8 @@ class VisionProviderSelectionDialog(SettingsDialog):
 			# The list of providers has not been populated yet, so we didn't change anything in this panel
 			return
 
-		for name, roles in self._state.iteritems():
+		# Sort the state in order for roles set to None will be uninitialized first.
+		for name, roles in sorted(self._state.items()):
 			if roles and not vision.handler.setProvider(name, *roles):
 				# Translators: This message is presented when
 				# NVDA is unable to load selected
