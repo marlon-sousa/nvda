@@ -29,6 +29,7 @@ import winVersion
 from locationHelper import RectLTRB
 from synthDriverHandler import StringParameterInfo
 import textInfos
+import treeInterceptorHandler
 
 CONTEXT_UNDETERMINED = "undetermined"
 CONTEXT_FOCUS = "focus"
@@ -135,8 +136,10 @@ class VisionEnhancementProvider(AutoPropertyObject):
 			obj = cls.getContextObject(context)
 		if not obj:
 			raise LookupError
-		elif context == CONTEXT_CARET:
-			if isinstance(obj, NVDAObjects.NVDAObject):
+		if context == CONTEXT_CARET:
+			if getattr(obj, "treeInterceptor", None) and not obj.treeInterceptor.passThrough:
+				obj = obj.treeInterceptor
+			elif isinstance(obj, NVDAObjects.NVDAObject):
 				# Import late to avoid circular import
 				from displayModel import getCaretRect
 				# Check whether there is a caret in the window.
@@ -257,6 +260,8 @@ class Magnifier(VisionEnhancementProvider):
 		try:
 			rect = self.getContextRect(context, obj)
 		except LookupError:
+			rect = None
+		if not rect:
 			return
 		self.trackToRectangle(rect, context=context, area=area)
 
@@ -487,11 +492,11 @@ class VisionHandler(AutoPropertyObject):
 			self.highlighter.updateContextRect(context, obj=obj)
 
 	def handleGainFocus(self, obj):
-		context = CONTEXT_FOCUS
+		context = CONTEXT_CARET if isinstance(obj, treeInterceptorHandler.TreeInterceptor) else CONTEXT_FOCUS
 		if self.magnifier and self.magnifier.isMagnifying:
 			self.magnifier.trackToObject(obj, context=context)
 		if self.highlighter and self.highlighter.enabled:
-			if context in self.highlighter.supportedContexts:
+			if context != CONTEXT_CARET and context in self.highlighter.supportedContexts:
 				self.highlighter.updateContextRect(context, obj=obj)
 			if CONTEXT_CARET in self.highlighter.supportedContexts:
 				# Check whether this object has a caret.
