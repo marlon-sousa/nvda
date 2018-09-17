@@ -32,7 +32,7 @@ class NVDAHighlighter(Highlighter):
 	name = "NVDAHighlighter"
 	# Translators: Description for NVDA's built-in screen highlighter.
 	description = _("NVDA Highlighter")
-	supportedContexts = (CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET)
+	supportedHighlightContexts = (CONTEXT_FOCUS, CONTEXT_NAVIGATOR, CONTEXT_CARET)
 	_contextStyles = {
 		CONTEXT_FOCUS: ContextStyle(wx.Colour(0x03, 0x36, 0xff, 0xff), 5, wx.PENSTYLE_SHORT_DASH, 5),
 		CONTEXT_NAVIGATOR: ContextStyle(wx.Colour(0xff, 0x02, 0x66, 0xff), 5, wx.PENSTYLE_SOLID, 5),
@@ -77,9 +77,7 @@ class NVDAHighlighter(Highlighter):
 		dc.Clear()
 		dc.SetBrush(wx.TRANSPARENT_BRUSH)
 		contextRects = {}
-		for context in self.supportedContexts:
-			if not config.conf['vision'][self.name]['highlight%s' % (context[0].upper() + context[1:])]:
-				continue
+		for context in self.enabledHighlightContexts:
 			rect = self.contextToRectMap.get(context)
 			if not rect:
 				continue
