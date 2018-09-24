@@ -73,9 +73,9 @@ class NVDAHighlighter(Highlighter):
 	def onPaint(self, event):
 		window= event.GetEventObject()
 		dc = wx.PaintDC(window)
-		dc.SetBackground(wx.TRANSPARENT_BRUSH)
+		dc.Background = wx.TRANSPARENT_BRUSH
 		dc.Clear()
-		dc.SetBrush(wx.TRANSPARENT_BRUSH)
+		dc.Brush = wx.TRANSPARENT_BRUSH
 		contextRects = {}
 		for context in self.enabledHighlightContexts:
 			rect = self.contextToRectMap.get(context)
@@ -91,7 +91,7 @@ class NVDAHighlighter(Highlighter):
 			contextRects[context] = rect
 		for context, rect in contextRects.items():
 			contextStyle = self._contextStyles[context]
-			dc.SetPen(wx.ThePenList.FindOrCreatePen(contextStyle.color, contextStyle.width, contextStyle.style))
+			dc.Pen = wx.ThePenList.FindOrCreatePen(contextStyle.color, contextStyle.width, contextStyle.style)
 			try:
 				rect = rect.expandOrShrink(contextStyle.margin).toClient(window.Handle).toLogical(window.Handle)
 			except RuntimeError:
@@ -107,8 +107,10 @@ class HighlightWindow(wx.Frame):
 	def updateLocationForDisplays(self):
 		displays = [ wx.Display(i).GetGeometry() for i in xrange(wx.Display.GetCount()) ]
 		screenWidth, screenHeight, minPos = getTotalWidthAndHeightAndMinimumPosition(displays)
-		self.SetPosition(minPos)
-		self.SetSize((screenWidth, screenHeight))
+		self.Position = minPos
+		# Hack: Windows has a "feature" that will stop desktop shortcut hotkeys from working when a window is full screen.
+		# Removing one line of pixels from the bottom of the screen will fix this.
+		self.Size = (screenWidth, screenHeight -1)
 
 	def __init__(self, highlighter):
 		super(HighlightWindow, self).__init__(gui.mainFrame, style=wx.NO_BORDER | wx.STAY_ON_TOP | wx.FULL_REPAINT_ON_RESIZE | wx.FRAME_NO_TASKBAR)
