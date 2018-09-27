@@ -118,7 +118,7 @@ class HighlightWindow(wx.Frame):
 		self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
 		exstyle = winUser.getExtendedWindowStyle(self.Handle) | winUser.WS_EX_LAYERED
 		winUser.setExtendedWindowStyle(self.Handle, exstyle)
-		winUser.SetLayeredWindowAttributes(self.Handle, 0, self.transparency, winUser.LWA_ALPHA | winUser.LWA_COLORKEY)
+		winUser.SetLayeredWindowAttributes(self.Handle, None, self.transparency, winUser.LWA_ALPHA | winUser.LWA_COLORKEY)
 		self.Bind(wx.EVT_PAINT, highlighter.onPaint)
 		self.ShowWithoutActivating()
 		wx.CallAfter(self.Disable)
