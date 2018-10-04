@@ -472,6 +472,7 @@ class VisionHandler(AutoPropertyObject):
 				setattr(self, role, providerInst)
 				if not temporary:
 					config.conf['vision'][role] = providerCls.name
+			self.initialFocus()
 			return True
 		except:
 			log.error("Error initializing vision enhancement provider %s for roles %s" % (name, ", ".join(roles)), exc_info=True)
@@ -576,6 +577,12 @@ class VisionHandler(AutoPropertyObject):
 			curProvider = getattr(self, role)
 			if  not curProvider or newProviderName != curProvider.name:
 				self.setProvider(newProviderName, role)
+
+	def initialFocus(self):
+		if not self.enabled or not api.getDesktopObject():
+			# No active providers or focus/review hasn't yet been initialised.
+			return
+		self.handleGainFocus(api.getFocusObject())
 
 def initialize():
 	# Register build in providers
