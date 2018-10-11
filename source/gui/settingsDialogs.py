@@ -2509,7 +2509,9 @@ class VisionSettingsPanel(SettingsPanel):
 			self.providersCtrl.SetValue(currentProvidersStr)
 			self.providerPanelsSizer.Clear(delete_windows=True)
 			self.providerPanelInstances[:] = []
-			for index, provider in enumerate(providersWithPanel):
+			for index, provider in enumerate(
+				sorted(providersWithPanel, key=lambda cls: cls.description)
+			):
 				if index > 0:
 					self.providerPanelsSizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
 				panelSizer = wx.StaticBoxSizer(wx.StaticBox(self, label=provider.description), wx.VERTICAL)
