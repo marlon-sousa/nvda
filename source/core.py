@@ -178,7 +178,6 @@ def resetConfiguration(factoryDefaults=False):
 	if audioDucking.isAudioDuckingSupported():
 		audioDucking.handlePostConfigProfileSwitch()
 	log.info("Reverted to saved configuration")
-	
 
 def _setInitialFocus():
 	"""Sets the initial focus if no focus event was received at startup.

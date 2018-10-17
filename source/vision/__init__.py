@@ -627,4 +627,3 @@ def terminate():
 	global handler
 	handler.terminate()
 	handler = None
-	_visionEnhancementProviders.clear()
