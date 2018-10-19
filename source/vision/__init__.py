@@ -225,7 +225,7 @@ class Highlighter(VisionEnhancementProvider):
 		if rect is None:
 			try:
 				rect= self.getContextRect(context, obj)
-			except LookupError:
+			except (LookupError, NotImplementedError):
 				rect = None
 		self.contextToRectMap[context] = rect
 
@@ -270,7 +270,7 @@ class Magnifier(VisionEnhancementProvider):
 		"""
 		try:
 			rect = self.getContextRect(context, obj)
-		except LookupError:
+		except (LookupError, NotImplementedError):
 			rect = None
 		if not rect:
 			return
