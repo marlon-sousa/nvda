@@ -39,7 +39,7 @@ class NVDAHighlighter(Highlighter):
 		CONTEXT_FOCUS_NAVIGATOR: ContextStyle(wx.Colour(0x03, 0x36, 0xff, 0xff), 5, wx.PENSTYLE_SOLID, 5),
 		CONTEXT_CARET: ContextStyle(wx.Colour(0xff, 0xde, 0x03, 0xff), 2, wx.PENSTYLE_SOLID, 0),
 	}
-	_refreshInterval = 150
+	_refreshInterval = 100
 
 	def __init__(self, *roles):
 		self.window = None
