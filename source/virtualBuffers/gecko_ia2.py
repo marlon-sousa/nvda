@@ -24,7 +24,7 @@ from NVDAObjects.IAccessible import normalizeIA2TextFormatField, IA2TextTextInfo
 class Gecko_ia2_TextInfo(VirtualBufferTextInfo):
 
 	def _getBoundingRectFromOffset(self,offset):
-		formatFieldStart, formatFieldEnd = self._getUnitOffsets(self.UNIT_FORMATFIELD, offset)
+		formatFieldStart, formatFieldEnd = self._getUnitOffsets(textInfos.UNIT_FORMATFIELD, offset)
 		# The format field starts at the first character.
 		for field in reversed(self._getFieldsInRange(formatFieldStart, formatFieldStart+1)):
 			if not (isinstance(field, textInfos.FieldCommand) and field.command == "formatChange"):
@@ -44,7 +44,7 @@ class Gecko_ia2_TextInfo(VirtualBufferTextInfo):
 		return super(Gecko_ia2_TextInfo, self)._getBoundingRectFromOffset(offset)
 
 	def _normalizeControlField(self,attrs):
-		for attr in ("table-physicalrownumber","table-physicalcolumnnumber","table-physicalrowcount","table-physicalcolumncount"):
+		for attr in ("table-rownumber-presentational","table-columnnumber-presentational","table-rowcount-presentational","table-columncount-presentational"):
 			attrVal=attrs.get(attr)
 			if attrVal is not None:
 				attrs[attr]=int(attrVal)
@@ -60,8 +60,8 @@ class Gecko_ia2_TextInfo(VirtualBufferTextInfo):
 		role=IAccessibleHandler.IAccessibleRolesToNVDARoles.get(accRole,controlTypes.ROLE_UNKNOWN)
 		if attrs.get('IAccessible2::attribute_tag',"").lower()=="blockquote":
 			role=controlTypes.ROLE_BLOCKQUOTE
-		states=set(IAccessibleHandler.IAccessibleStatesToNVDAStates[x] for x in [1<<y for y in xrange(32)] if int(attrs.get('IAccessible::state_%s'%x,0)) and x in IAccessibleHandler.IAccessibleStatesToNVDAStates)
-		states|=set(IAccessibleHandler.IAccessible2StatesToNVDAStates[x] for x in [1<<y for y in xrange(32)] if int(attrs.get('IAccessible2::state_%s'%x,0)) and x in IAccessibleHandler.IAccessible2StatesToNVDAStates)
+		states=set(IAccessibleHandler.IAccessibleStatesToNVDAStates[x] for x in [1<<y for y in range(32)] if int(attrs.get('IAccessible::state_%s'%x,0)) and x in IAccessibleHandler.IAccessibleStatesToNVDAStates)
+		states|=set(IAccessibleHandler.IAccessible2StatesToNVDAStates[x] for x in [1<<y for y in range(32)] if int(attrs.get('IAccessible2::state_%s'%x,0)) and x in IAccessibleHandler.IAccessible2StatesToNVDAStates)
 		if role == controlTypes.ROLE_EDITABLETEXT and not (controlTypes.STATE_FOCUSABLE in states or controlTypes.STATE_UNAVAILABLE in states or controlTypes.STATE_EDITABLE in states):
 			# This is a text leaf.
 			# See NVDAObjects.Iaccessible.mozilla.findOverlayClasses for an explanation of these checks.
@@ -92,9 +92,12 @@ class Gecko_ia2_TextInfo(VirtualBufferTextInfo):
 			role=controlTypes.ROLE_TEXTFRAME
 		level=attrs.get('IAccessible2::attribute_level',"")
 		xmlRoles=attrs.get("IAccessible2::attribute_xml-roles", "").split(" ")
-		# Get the first landmark role, if any.
-		landmark=next((xr for xr in xmlRoles if xr in aria.landmarkRoles),None)
-
+		landmark = next((xr for xr in xmlRoles if xr in aria.landmarkRoles), None)
+		if landmark and role != controlTypes.ROLE_LANDMARK and landmark != xmlRoles[0]:
+			# Ignore the landmark role
+			landmark = None
+		if role == controlTypes.ROLE_DOCUMENT and xmlRoles[0] == "article":
+			role = controlTypes.ROLE_ARTICLE
 		attrs['role']=role
 		attrs['states']=states
 		if level is not "" and level is not None:
@@ -132,6 +135,9 @@ class Gecko_ia2(VirtualBuffer):
 			return False
 		if self.rootNVDAObject.windowHandle==obj.windowHandle:
 			ID=obj.IA2UniqueID
+			if not ID:
+				# Dead object.
+				return False
 			try:
 				self.rootNVDAObject.IAccessibleObject.accChild(ID)
 			except COMError:
@@ -204,23 +210,18 @@ class Gecko_ia2(VirtualBuffer):
 				break
 			except:
 				log.debugWarning("doAction failed")
-			if controlTypes.STATE_OFFSCREEN in obj.states or controlTypes.STATE_INVISIBLE in obj.states:
+			if obj.hasIrrelevantLocation:
+				# This check covers invisible, off screen and a None location
+				log.debugWarning("No relevant location for object")
 				obj = obj.parent
 				continue
-			try:
-				l, t, w, h = obj.location
-			except TypeError:
-				log.debugWarning("No location for object")
-				obj = obj.parent
-				continue
-			if not w or not h:
+			location = obj.location
+			if not location.width or not location.height:
 				obj = obj.parent
 				continue
 			log.debugWarning("Clicking with mouse")
-			x = l + w / 2
-			y = t + h / 2
 			oldX, oldY = winUser.getCursorPos()
-			winUser.setCursorPos(x, y)
+			winUser.setCursorPos(*location.center)
 			mouseHandler.executeMouseEvent(winUser.MOUSEEVENTF_LEFTDOWN, 0, 0)
 			mouseHandler.executeMouseEvent(winUser.MOUSEEVENTF_LEFTUP, 0, 0)
 			winUser.setCursorPos(oldX, oldY)
@@ -286,10 +287,15 @@ class Gecko_ia2(VirtualBuffer):
 			attrs={"IAccessible::state_%s"%oleacc.STATE_SYSTEM_FOCUSABLE:[1]}
 		elif nodeType=="landmark":
 			attrs = [
+				{"IAccessible::role": [IAccessibleHandler.IA2_ROLE_LANDMARK]},
 				{"IAccessible2::attribute_xml-roles": [VBufStorage_findMatch_word(lr) for lr in aria.landmarkRoles if lr != "region"]},
 				{"IAccessible2::attribute_xml-roles": [VBufStorage_findMatch_word("region")],
 					"name": [VBufStorage_findMatch_notEmpty]}
 				]
+		elif nodeType == "article":
+			attrs = [
+				{"IAccessible2::attribute_xml-roles": [VBufStorage_findMatch_word("article")]}
+			]
 		elif nodeType=="embeddedObject":
 			attrs=[
 				{"IAccessible2::attribute_tag":self._searchableTagValues(["embed","object","applet","audio","video"])},
@@ -311,12 +317,6 @@ class Gecko_ia2(VirtualBuffer):
 		if not self._handleScrollTo(obj):
 			return nextHandler()
 	event_scrollingStart.ignoreIsReady = True
-
-	# NVDA exposes IAccessible2 table interface row and column numbers as table-physicalrownumber and table-physicalcolumnnumber respectively.
-	# These should be used when navigating the physical table (I.e. these values should be provided to the table interfaces).
-	# The presentational table-columnnumber and table-rownumber attributes are normally duplicates of the physical ones, but are overridden  by the values of aria-rowindex and aria-colindex if present.
-	navigationalTableRowNumberAttributeName="table-physicalrownumber"
-	navigationalTableColumnNumberAttributeName="table-physicalcolumnnumber"
 
 	def _getTableCellAt(self,tableID,startPos,destRow,destCol):
 		docHandle = self.rootDocHandle

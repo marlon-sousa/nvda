@@ -71,7 +71,7 @@ class ScreenUpdatingDisabler {
 		}
 		HRESULT res=_com_dispatch_raw_propput(arg_pDispatchApplication,wdDISPID_APPLICATION_SCREENUPDATING,VT_BOOL,false);
 		if(res!=S_OK) {
-			LOG_ERROR(L"application.screenUpdating false failed with code "<<res);
+			LOG_WARNING(L"application.screenUpdating false failed with code "<<res);
 			return;
 		}
 		pDispatchApplication=arg_pDispatchApplication;
@@ -81,7 +81,7 @@ class ScreenUpdatingDisabler {
 		if(!pDispatchApplication) return;
 		HRESULT res=_com_dispatch_raw_propput(pDispatchApplication,wdDISPID_APPLICATION_SCREENUPDATING,VT_BOOL,true);
 		if(res!=S_OK) {
-			LOG_ERROR(L"application.screenUpdating true failed with code "<<res);
+			LOG_WARNING(L"application.screenUpdating true failed with code "<<res);
 		}
 	}
 
@@ -645,6 +645,9 @@ void generateXMLAttribsForFormatting(IDispatch* pDispatchRange, int startOffset,
 				} else if(_com_dispatch_raw_propget(pDispatchFont,wdDISPID_FONT_DOUBLESTRIKETHROUGH,VT_I4,&iVal)==S_OK&&iVal) {
 					formatAttribsStream<<L"strikethrough=\"double\" ";
 				}
+				if(_com_dispatch_raw_propget(pDispatchFont,wdDISPID_FONT_HIDDEN,VT_I4,&iVal)==S_OK&&iVal) {
+					formatAttribsStream<<L"hidden=\"1\" ";
+				}			
 			}
 		}
 	}

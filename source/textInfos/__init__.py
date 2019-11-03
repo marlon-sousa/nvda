@@ -1,8 +1,7 @@
-#textInfos/__init__.py
-#A part of NonVisual Desktop Access (NVDA)
-#This file is covered by the GNU General Public License.
-#See the file COPYING for more details.
-#Copyright (C) 2006-2018 NV Access Limited, Babbage B.V.
+# A part of NonVisual Desktop Access (NVDA)
+# This file is covered by the GNU General Public License.
+# See the file COPYING for more details.
+# Copyright (C) 2006-2019 NV Access Limited, Babbage B.V.
 
 """Framework for accessing text content in widgets.
 The core component of this framework is the L{TextInfo} class.
@@ -16,6 +15,7 @@ import re
 import baseObject
 import config
 import controlTypes
+import locationHelper
 
 class Field(dict):
 	"""Provides information about a piece of text."""
@@ -62,14 +62,20 @@ class ControlField(Field):
 					table = None
 			if not table or (not formatConfig["includeLayoutTables"] and table.get("table-layout", None)) or table.get('isHidden',False):
 				return self.PRESCAT_LAYOUT
+		landmark = self.get("landmark")
 		if reason in (controlTypes.REASON_CARET, controlTypes.REASON_SAYALL, controlTypes.REASON_FOCUS) and (
 			(role == controlTypes.ROLE_LINK and not formatConfig["reportLinks"])
 			or (role == controlTypes.ROLE_HEADING and not formatConfig["reportHeadings"])
 			or (role == controlTypes.ROLE_BLOCKQUOTE and not formatConfig["reportBlockQuotes"])
 			or (role in (controlTypes.ROLE_TABLE, controlTypes.ROLE_TABLECELL, controlTypes.ROLE_TABLEROWHEADER, controlTypes.ROLE_TABLECOLUMNHEADER) and not formatConfig["reportTables"])
 			or (role in (controlTypes.ROLE_LIST, controlTypes.ROLE_LISTITEM) and controlTypes.STATE_READONLY in states and not formatConfig["reportLists"])
+			or (role == controlTypes.ROLE_ARTICLE and not formatConfig["reportArticles"])
 			or (role in (controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME) and not formatConfig["reportFrames"])
 			or (role in (controlTypes.ROLE_DELETED_CONTENT,controlTypes.ROLE_INSERTED_CONTENT) and not formatConfig["reportRevisions"])
+			or (
+				(role == controlTypes.ROLE_LANDMARK or landmark)
+				and not formatConfig["reportLandmarks"]
+			)
 		):
 			# This is just layout as far as the user is concerned.
 			return self.PRESCAT_LAYOUT
@@ -101,7 +107,16 @@ class ControlField(Field):
 			or (role == controlTypes.ROLE_LIST and controlTypes.STATE_READONLY not in states)
 		):
 			return self.PRESCAT_SINGLELINE
-		elif role in (controlTypes.ROLE_SEPARATOR, controlTypes.ROLE_FOOTNOTE, controlTypes.ROLE_ENDNOTE, controlTypes.ROLE_EMBEDDEDOBJECT, controlTypes.ROLE_MATH):
+		elif (
+			role in (
+				controlTypes.ROLE_SEPARATOR,
+				controlTypes.ROLE_FOOTNOTE,
+				controlTypes.ROLE_ENDNOTE,
+				controlTypes.ROLE_EMBEDDEDOBJECT,
+				controlTypes.ROLE_MATH
+			)
+			or (role == controlTypes.ROLE_LANDMARK or landmark)
+		):
 			return self.PRESCAT_MARKER
 		elif role in (controlTypes.ROLE_APPLICATION, controlTypes.ROLE_DIALOG):
 			# Applications and dialogs should be reported as markers when embedded within content, but not when they themselves are the root
@@ -109,8 +124,20 @@ class ControlField(Field):
 		elif role in (controlTypes.ROLE_TABLECELL, controlTypes.ROLE_TABLECOLUMNHEADER, controlTypes.ROLE_TABLEROWHEADER):
 			return self.PRESCAT_CELL
 		elif (
-			role in (controlTypes.ROLE_BLOCKQUOTE, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME, controlTypes.ROLE_TOOLBAR, controlTypes.ROLE_MENUBAR, controlTypes.ROLE_POPUPMENU, controlTypes.ROLE_TABLE)
-			or (role == controlTypes.ROLE_EDITABLETEXT and (controlTypes.STATE_READONLY not in states or controlTypes.STATE_FOCUSABLE in states) and controlTypes.STATE_MULTILINE in states)
+			role in (
+				controlTypes.ROLE_BLOCKQUOTE,
+				controlTypes.ROLE_FRAME,
+				controlTypes.ROLE_INTERNALFRAME,
+				controlTypes.ROLE_TOOLBAR,
+				controlTypes.ROLE_MENUBAR,
+				controlTypes.ROLE_POPUPMENU,
+				controlTypes.ROLE_TABLE,
+				controlTypes.ROLE_ARTICLE,
+			)
+			or (role == controlTypes.ROLE_EDITABLETEXT and (
+				controlTypes.STATE_READONLY not in states
+				or controlTypes.STATE_FOCUSABLE in states
+			) and controlTypes.STATE_MULTILINE in states)
 			or (role == controlTypes.ROLE_LIST and controlTypes.STATE_READONLY in states)
 			or (controlTypes.STATE_FOCUSABLE in states and controlTypes.STATE_EDITABLE in states)
 		):
@@ -159,42 +186,6 @@ POSITION_CARET="caret"
 POSITION_SELECTION="selection"
 POSITION_ALL="all"
 
-class Point(object):
-	"""Represents a point on the screen.
-	This is used when associating a point on the screen with a piece of text.
-	@Deprecated: use L{locationHelper.Point} instead.
-	"""
-
-	def __init__(self,x,y):
-		"""
-		@param x: the x coordinate
-		@type x: int
-		@param y: The y coordinate
-		@type y: int
-		"""
-		self.x=x
-		self.y=y
-
-class Rect(object):
-	"""Represents a rectangle on the screen.
-	@Deprecated: use L{locationHelper.Rect} instead."""
-
-	def __init__(self, left, top, right, bottom):
-		"""
-		@param left: The x coordinate of the upper left corner of the rectangle.
-		@type left: int
-		@param top: The y coordinate of the upper left corner of the rectangle.
-		@type top: int
-		@param right: The x coordinate of the lower right corner of the rectangle.
-		@type right: int
-		@param bottom: The y coordinate of the lower right corner of the rectangle.
-		@type bottom: int
-		"""
-		self.left = left
-		self.top = top
-		self.right = right
-		self.bottom = bottom
-
 class Bookmark(baseObject.AutoPropertyObject):
 	"""Represents a static absolute position in some text.
 	This is used to construct a L{TextInfo} at an exact previously obtained position.
@@ -216,24 +207,34 @@ class Bookmark(baseObject.AutoPropertyObject):
 		if isinstance(other,Bookmark) and self.infoClass==other.infoClass and self.data==other.data:
 			return True
 
+	# As __eq__ was defined on this class, we must provide __hash__ to remain hashable.
+	# The default hash implementation is fine for  our purposes.
+	def __hash__(self):
+		return super().__hash__()
+
 	def __ne__(self,other):
 		return not self==other
 
+
 #Unit constants
-UNIT_CHARACTER="character"
-UNIT_WORD="word"
-UNIT_LINE="line"
-UNIT_SENTENCE="sentence"
-UNIT_PARAGRAPH="paragraph"
-UNIT_PAGE="page"
-UNIT_TABLE="table"
-UNIT_ROW="row"
-UNIT_COLUMN="column"
-UNIT_CELL="cell"
-UNIT_SCREEN="screen"
-UNIT_STORY="story"
-UNIT_READINGCHUNK="readingChunk"
-UNIT_OFFSET="offset"
+UNIT_CHARACTER = "character"
+UNIT_WORD = "word"
+UNIT_LINE = "line"
+UNIT_SENTENCE = "sentence"
+UNIT_PARAGRAPH = "paragraph"
+UNIT_PAGE = "page"
+UNIT_TABLE = "table"
+UNIT_ROW = "row"
+UNIT_COLUMN = "column"
+UNIT_CELL = "cell"
+UNIT_SCREEN = "screen"
+UNIT_STORY = "story"
+UNIT_READINGCHUNK = "readingChunk"
+UNIT_OFFSET = "offset"
+UNIT_CONTROLFIELD = "controlField"
+UNIT_FORMATFIELD = "formatField"
+
+MOUSE_TEXT_RESOLUTION_UNITS = (UNIT_CHARACTER,UNIT_WORD,UNIT_LINE,UNIT_PARAGRAPH)
 
 unitLabels={
 	UNIT_CHARACTER:_("character"),
@@ -262,6 +263,10 @@ class TextInfo(baseObject.AutoPropertyObject):
 	@type bookmark: L{Bookmark}
 	"""
 
+	#: whether this textInfo should be expanded then collapsed around its enclosing unit before review.
+	#: This can be problematic for some implementations.
+	_expandCollapseBeforeReview = True
+
 	def __init__(self,obj,position):
 		"""Constructor.
 		Subclasses must extend this, calling the superclass method first.
@@ -286,7 +291,7 @@ class TextInfo(baseObject.AutoPropertyObject):
 		"""The text with in this range.
 		Subclasses must implement this.
 		@return: The text.
-		@rtype: unicode
+		@rtype: str
 		@note: The text is not guaranteed to be the exact length of the range in offsets.
 		"""
 		raise NotImplementedError
@@ -297,7 +302,7 @@ class TextInfo(baseObject.AutoPropertyObject):
 		@param formatConfig: Document formatting configuration, useful if you wish to force a particular configuration for a particular task.
 		@type formatConfig: dict
 		@return: A sequence of text strings interspersed with associated field commands.
-		@rtype: list of unicode and L{FieldCommand}
+		@rtype: list of str and L{FieldCommand}
 		""" 
 		return [self.text]
 
@@ -453,6 +458,7 @@ class TextInfo(baseObject.AutoPropertyObject):
 	def _get_pointAtStart(self):
 		"""Retrieves x and y coordinates corresponding with the textInfo start. It should return Point.
 		The base implementation uses L{boundingRects}.
+		@rtype: L{locationHelper.Point}
 		"""
 		if self.isCollapsed:
 			copy = self.copy()
@@ -512,7 +518,7 @@ class TextInfo(baseObject.AutoPropertyObject):
 		If extended, the superclass should be called first.
 		@param separator: The text used to separate chunks of format information;
 			defaults to L{speech.CHUNK_SEPARATOR}.
-		@type separator: basestring
+		@type separator: str
 		"""
 		# Import late to avoid circular import.
 		import speech
