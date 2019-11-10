@@ -41,6 +41,7 @@ generateBeep=None
 VBuf_getTextInRange=None
 lastLanguageID=None
 lastLayoutString=None
+imeOpenedStatus = 0
 
 #utility function to point an exported function pointer in a dll  to a ctypes wrapped python function
 def _setDllFuncPointer(dll,name,cfunc):
@@ -319,12 +320,16 @@ def nvdaControllerInternal_inputConversionModeUpdate(oldFlags,newFlags,lcid):
 
 @WINFUNCTYPE(c_long,c_long)
 def nvdaControllerInternal_IMEOpenStatusUpdate(opened):
+	global imeOpenedStatus
 	if opened:
 		# Translators: a message when the IME open status changes to opened
 		message=_("IME opened")
 	else:
 		# Translators: a message when the IME open status changes to closed
 		message=_("IME closed")
+	
+	imeOpenedStatus = opened
+
 	import ui
 	queueHandler.queueFunction(queueHandler.eventQueue,ui.message,message)
 	return 0

@@ -24,6 +24,7 @@ import braille
 import vision
 import controlTypes
 from inputCore import SCRCAT_BROWSEMODE
+import NVDAHelper
 import ui
 from textInfos import DocumentWithPageTurns
 
@@ -61,6 +62,8 @@ class FindDialog(wx.Dialog):
 		mainSizer.Add(self.CreateButtonSizer(wx.OK|wx.CANCEL), flag=wx.ALIGN_RIGHT)
 		self.Bind(wx.EVT_BUTTON,self.onOk,id=wx.ID_OK)
 		self.Bind(wx.EVT_BUTTON,self.onCancel,id=wx.ID_CANCEL)
+		# if escape key is pressed and ime is being used, prevent the dialog from closing, as sthis key is part of the typing process
+		self.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
 		mainSizer.Fit(self)
 		self.SetSizer(mainSizer)
 		self.CentreOnScreen()
@@ -105,6 +108,10 @@ class FindDialog(wx.Dialog):
 	def onCancel(self, evt):
 		self.Destroy()
 
+	def onKeyPress(self, evt):
+		if not NVDAHelper.imeOpenedStatus or evt.GetUnicodeKey() != wx.WXK_ESCAPE:
+			evt.Skip()
+	
 	def _truncateSearchHistory(self, entries):
 		del entries[SEARCH_HISTORY_LEAST_RECENT_INDEX:]
 
