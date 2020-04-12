@@ -125,6 +125,14 @@ def initialize():
 	dictionaries["default"].load(os.path.join(speechDictsPath, "default.dic"))
 	dictionaries["builtin"].load("builtin.dic")
 
+def loadProfileDict():
+	profile = config.conf.getActiveProfile()
+	if _hasDictionaryProfile(profile.name, "default.dic"):
+		_loadProfileDictionary(dictionaries["default"], profile.name, "default.dic")
+	else:
+		dictionaries["default"].load(os.path.join(speechDictsPath, "default.dic"))
+	dictionaries["builtin"].load("builtin.dic")
+
 def loadVoiceDict(synth):
 	"""Loads appropriate dictionary for the given synthesizer.
 It handles case when the synthesizer doesn't support voice setting.
@@ -139,6 +147,22 @@ It handles case when the synthesizer doesn't support voice setting.
 		baseName = dictFormatUpgrade.createVoiceDictFileName(synth.name, voice)
 	else:
 		baseName=r"{synth}.dic".format(synth=synth.name)
+	profile = config.conf.getActiveProfile()
 	voiceDictsPath = dictFormatUpgrade.voiceDictsPath
-	fileName= os.path.join(voiceDictsPath, synth.name, baseName)
-	dictionaries["voice"].load(fileName)
+	if(_hasVoiceDictionaryProfile(profile.name, synth.name, baseName)):
+		_loadProfileVoiceDictionary(dictionaries["voice"], synth.name, baseName )
+	else:
+		fileName= os.path.join(voiceDictsPath, synth.name, baseName)
+		dictionaries["voice"].load(fileName)
+
+def _hasDictionaryProfile(profileName, dictionaryName):
+	return os.path.exists(os.path.join(speechDictsPath, profileName or "", dictionaryName))
+
+def _hasVoiceDictionaryProfile(profileName, synthName, voiceName):
+	return os.path.join(dictFormatUpgrade.voiceDictsPath, synthName, voiceName)
+
+def _loadProfileDictionary(target, profileName, dictionaryName):
+	target.load(os.path.join(speechDictsPath, profileName or "", dictionaryName))
+
+def _loadProfileVoiceDictionary(target, synthName, voiceName):
+	target.load(os.path.join(dictFormatUpgrade.getProfileVoiceDictsPath(), synthName, voiceName))

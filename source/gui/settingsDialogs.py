@@ -2605,7 +2605,8 @@ class DictionaryDialog(SettingsDialog):
 	TYPE_LABELS = {t: l.replace("&", "") for t, l in DictionaryEntryDialog.TYPE_LABELS.items()}
 
 	def __init__(self,parent,title,speechDict):
-		self.title = title
+		self._profile = config.conf.getActiveProfile()
+		self.title = self._makeTitle(title)
 		self.speechDict = speechDict
 		self.tempSpeechDict=speechDictHandler.SpeechDict()
 		self.tempSpeechDict.extend(self.speechDict)
@@ -2617,6 +2618,11 @@ class DictionaryDialog(SettingsDialog):
 		self.SetSize(576, 502)
 		self.CentreOnScreen()
 
+	def _makeTitle(self, title):
+		# Translators: The profile name for normal configuration
+		profileName = self._profile.name or _("normal configuration")
+		return f"{title} - {profileName}"
+	
 	def makeSettings(self, settingsSizer):
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		# Translators: The label for the list box of dictionary entries in speech dictionary dialog.
@@ -3559,7 +3565,7 @@ class NVDASettingsDialog(MultiCategorySettingsDialog):
 
 	def _doOnCategoryChange(self):
 		global NvdaSettingsDialogActiveConfigProfile
-		NvdaSettingsDialogActiveConfigProfile = config.conf.profiles[-1].name
+		NvdaSettingsDialogActiveConfigProfile = config.conf.getActiveProfile().name
 		if not NvdaSettingsDialogActiveConfigProfile or isinstance(self.currentCategory, GeneralSettingsPanel):
 			# Translators: The profile name for normal configuration
 			NvdaSettingsDialogActiveConfigProfile = _("normal configuration")
