@@ -41,6 +41,9 @@ class SpeechDictEntry:
 		self.caseSensitive=caseSensitive
 		self.type=type
 
+	def getPattern(self):
+		return self.pattern
+
 	def sub(self, text):
 		replacement=self.replacement
 		return self.compiled.sub(replacement, text)
@@ -49,6 +52,12 @@ class SpeechDict(list):
 
 	fileName = None
 
+	def create(self, fileName):
+		if os.path.exists(fileName):
+			raise f"can not create dictionary backed by file {fileName}"
+		self.fileName=fileName
+		log.debug("creating dictionary with file '%s'." % fileName)
+	
 	def load(self, fileName):
 		self.fileName=fileName
 		comment=""
@@ -84,6 +93,11 @@ class SpeechDict(list):
 		file.close()
 		return
 
+	def syncFrom(self, source):
+		for entry in source:
+			if not next((x for x in self if x.pattern == entry.pattern), None):
+				self.append(entry)
+		
 	def save(self,fileName=None):
 		if not fileName:
 			fileName=getattr(self,'fileName',None)
@@ -124,6 +138,22 @@ def initialize():
 		dictionaries[type]=SpeechDict()
 	dictionaries["default"].load(os.path.join(speechDictsPath, "default.dic"))
 	dictionaries["builtin"].load("builtin.dic")
+
+def getDictionary(type):
+	profile = config.conf.getActiveProfile()
+	# if we are om default profile or the specific dictionary profile is already loaded
+	if not profile.name or _hasDictionaryProfile(profile.name, f"{type}.dic"):
+		# we are with the correct dictionary loaded. Just return it.
+		log.debug(f"{type} dictionary, backed by {dictionaries[type].fileName} was requested")
+		return dictionaries[type]
+	# we are on a user profile for which there is no dictionary created.
+	# The current loaded dictionary is the default profile one.
+	# As we have beem called to get the current profile dictionary and it still does not exist, We will create it now and pass the new, empty dictionary to the caller, but won't save it.
+	# This is a task the caller should do when and if they wish
+	dic = SpeechDict()
+	dic.create(os.path.join(speechDictsPath, profile.name, f"{type}.dic"))
+	log.debug(f"{type} dictionary was requested for profile {profile.name}, but the backing file does not exist. a New dictionary was created, set to be vacked by {dic.fileName} if it is ever saved.")
+	return dic
 
 def loadProfileDict():
 	profile = config.conf.getActiveProfile()

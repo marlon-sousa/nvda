@@ -29,7 +29,6 @@ import logging
 from logging import DEBUG
 import shlobj
 import baseObject
-import speechDictHandler
 import easeOfAccess
 from fileUtils import FaultTolerantFile
 import extensionPoints
@@ -403,12 +402,14 @@ class ConfigManager(object):
 		init = currentRootSection is None
 		# Reset the cache.
 		self.rootSection = AggregatedSection(self, (), self.spec, self.profiles)
-		# processing new dictionary profiles
-		speechDictHandler.loadProfileDict()
 		
 		if init:
 			# We're still initialising, so don't notify anyone about this change.
 			return
+		
+		# processing new dictionary profiles
+		from speechDictHandler import loadProfileDict
+		loadProfileDict()
 		if shouldNotify:
 			post_configProfileSwitch.notify(prevConf=currentRootSection.dict())
 

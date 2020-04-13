@@ -197,7 +197,7 @@ class MainFrame(wx.Frame):
 
 	def onDefaultDictionaryCommand(self,evt):
 		# Translators: Title for default speech dictionary dialog.
-		self._popupSettingsDialog(DictionaryDialog,_("Default dictionary"),speechDictHandler.dictionaries["default"])
+		self._popupSettingsDialog(DictionaryDialog,_("Default dictionary"),speechDictHandler.getDictionary("default"))
 
 	def onVoiceDictionaryCommand(self,evt):
 		# Translators: Title for voice dictionary for the current voice such as current eSpeak variant.

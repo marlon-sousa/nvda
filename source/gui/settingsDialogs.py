@@ -2604,6 +2604,8 @@ class DictionaryEntryDialog(wx.Dialog):
 class DictionaryDialog(SettingsDialog):
 	TYPE_LABELS = {t: l.replace("&", "") for t, l in DictionaryEntryDialog.TYPE_LABELS.items()}
 
+	PATTERN_COL = 1
+
 	def __init__(self,parent,title,speechDict):
 		self._profile = config.conf.getActiveProfile()
 		self.title = self._makeTitle(title)
@@ -2665,10 +2667,23 @@ class DictionaryDialog(SettingsDialog):
 			label=_("&Remove")
 		).Bind(wx.EVT_BUTTON, self.OnRemoveClick)
 
+		if(self._profile.name):
+			bHelper.addButton(
+				parent=self,
+				# Translators: The label for a button in speech dictionaries dialog to sycn entries with default profile dictionary.
+				label=_("&import entries from default profile dictionary")
+			).Bind(wx.EVT_BUTTON, self.onImportEntriesClick)
+
 		sHelper.addItem(bHelper)
 
 	def postInit(self):
 		self.dictList.SetFocus()
+
+	def hasEntry(self, pattern):
+		for row in range (self.dictList.GetItemCount()):
+			if self.dictList.GetItem(row, self.PATTERN_COL).GetText() == pattern:
+				return True
+		return False
 
 	def onCancel(self,evt):
 		globalVars.speechDictionaryProcessing=True
@@ -2682,6 +2697,17 @@ class DictionaryDialog(SettingsDialog):
 			self.speechDict.save()
 		super(DictionaryDialog, self).onOk(evt)
 
+	def onImportEntriesClick(self, evt):
+		sourceFileName = self.speechDict.fileName.replace(f"{self._profile.name}\\", "")
+		log.debug(f"Importing entries from default dictionary at {sourceFileName}")
+		source = speechDictHandler.SpeechDict()
+		source.load(sourceFileName)
+		self.tempSpeechDict.syncFrom(source)
+		for entry in self.tempSpeechDict:
+			if not self.hasEntry(entry.pattern):
+				self.dictList.Append((entry.comment,entry.pattern,entry.replacement,self.offOn[int(entry.caseSensitive)],DictionaryDialog.TYPE_LABELS[entry.type]))
+		self.dictList.SetFocus()
+	
 	def OnAddClick(self,evt):
 		# Translators: This is the label for the add dictionary entry dialog.
 		entryDialog=DictionaryEntryDialog(self,title=_("Add Dictionary Entry"))
