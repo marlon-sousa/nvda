@@ -24,6 +24,7 @@ import config
 import languageHandler
 import speech
 import gui
+import os
 import globalVars
 from logHandler import log
 import nvwave
@@ -2670,7 +2671,7 @@ class DictionaryDialog(SettingsDialog):
 		if(self._profile.name):
 			bHelper.addButton(
 				parent=self,
-				# Translators: The label for a button in speech dictionaries dialog to sycn entries with default profile dictionary.
+				# Translators: The label for the import entries from default profile dictionary
 				label=_("&import entries from default profile dictionary")
 			).Bind(wx.EVT_BUTTON, self.onImportEntriesClick)
 
@@ -2680,7 +2681,7 @@ class DictionaryDialog(SettingsDialog):
 		self.dictList.SetFocus()
 
 	def hasEntry(self, pattern):
-		for row in range (self.dictList.GetItemCount()):
+		for row in range(self.dictList.GetItemCount()):
 			if self.dictList.GetItem(row, self.PATTERN_COL).GetText() == pattern:
 				return True
 		return False
@@ -2712,7 +2713,13 @@ class DictionaryDialog(SettingsDialog):
 		self.tempSpeechDict.syncFrom(source)
 		for entry in self.tempSpeechDict:
 			if not self.hasEntry(entry.pattern):
-				self.dictList.Append((entry.comment,entry.pattern,entry.replacement,self.offOn[int(entry.caseSensitive)],DictionaryDialog.TYPE_LABELS[entry.type]))
+				self.dictList.Append((
+					entry.comment,
+					entry.pattern,
+					entry.replacement,
+					self.offOn[int(entry.caseSensitive)],
+					DictionaryDialog.TYPE_LABELS[entry.type]
+				))
 		self.dictList.SetFocus()
 	
 	def OnAddClick(self,evt):

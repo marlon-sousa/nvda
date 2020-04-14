@@ -28,9 +28,11 @@ def createVoiceDictFileName(synthName, voiceName):
 			voice = api.filterFileName(voiceName)
 			)
 
+
 def getProfileVoiceDictsPath():
 	profile = conf.getActiveProfile()
 	return os.path.join(speechDictsPath, profile.name or "", r"voiceDicts.v1")
+
 
 def getProfileVoiceDictsBackupPath():
 	profile = conf.getActiveProfile()

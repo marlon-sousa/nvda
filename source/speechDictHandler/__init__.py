@@ -55,7 +55,7 @@ class SpeechDict(list):
 	def create(self, fileName):
 		if os.path.exists(fileName):
 			raise f"can not create dictionary backed by file {fileName}"
-		self.fileName=fileName
+		self.fileName = fileName
 		log.debug("creating dictionary with file '%s'." % fileName)
 	
 	def load(self, fileName):
@@ -97,7 +97,7 @@ class SpeechDict(list):
 		for entry in source:
 			if not next((x for x in self if x.pattern == entry.pattern), None):
 				self.append(entry)
-		
+	
 	def save(self,fileName=None):
 		if not fileName:
 			fileName=getattr(self,'fileName',None)
@@ -140,8 +140,10 @@ def initialize():
 	dictionaries["builtin"].load("builtin.dic")
 	config.post_configProfileSwitch.register(_handlePostConfigProfileSwitch)
 
+
 def _handlePostConfigProfileSwitch(resetSpeechIfNeeded=True):
 	reloadDictionaries()
+
 
 def reloadDictionaries():
 	from synthDriverHandler import getSynth
@@ -149,6 +151,7 @@ def reloadDictionaries():
 	loadProfileDict()
 	loadVoiceDict(synth)
 	log.debug(f"loaded dictionaries for profile {config.conf.getActiveProfile().name or 'default'}")
+
 
 def _getVoiceDictionary(profile):
 	from synthDriverHandler import getSynth
@@ -161,12 +164,17 @@ def _getVoiceDictionary(profile):
 		return dictionaries["voice"]
 	# we are on a user profile for which there is no dictionary created for the current voice.
 	# The current loaded dictionary is the default profile one.
-	# As we have beem called to get the profile dictionary for the current voice and it still does not exist, We will create it now and pass the new, empty dictionary to the caller, but won't save it.
+	# As we have beem called to get the profile dictionary for the current voice and it still does not exist,
+	# We will create it now and pass the new, empty dictionary to the caller, but won't save it.
 	# This is a task the caller should do when and if they wish
 	dic = SpeechDict()
 	dic.create(os.path.join(dictFormatUpgrade.getProfileVoiceDictsPath(), synth.name, dictionaryFilename))
-	log.debug(f"voice dictionary was requested for profile {profile.name}, but the backing file does not exist. a New dictionary was created, set to be vacked by {dic.fileName} if it is ever saved.")
+	log.debug(
+		f"voice dictionary was requested for profile {profile.name}, but the backing file does not exist."
+		f" A New dictionary was created, set to be backed by {dic.fileName} if it is ever saved."
+	)
 	return dic
+
 
 def getDictionary(type):
 	profile = config.conf.getActiveProfile()
@@ -179,12 +187,17 @@ def getDictionary(type):
 		return dictionaries[type]
 	# we are on a user profile for which there is no dictionary created.
 	# The current loaded dictionary is the default profile one.
-	# As we have beem called to get the current profile dictionary and it still does not exist, We will create it now and pass the new, empty dictionary to the caller, but won't save it.
+	# As we have beem called to get the current profile dictionary and it still does not exist,
+	# We will create it now and pass the new, empty dictionary to the caller, but won't save it.
 	# This is a task the caller should do when and if they wish
 	dic = SpeechDict()
 	dic.create(os.path.join(speechDictsPath, profile.name, f"{type}.dic"))
-	log.debug(f"{type} dictionary was requested for profile {profile.name}, but the backing file does not exist. a New dictionary was created, set to be vacked by {dic.fileName} if it is ever saved.")
+	log.debug(
+		f"{type} dictionary was requested for profile {profile.name}, but the backing file does not exist."
+		f" A New dictionary was created, set to be backed by {dic.fileName} if it is ever saved."
+	)
 	return dic
+
 
 def loadProfileDict():
 	profile = config.conf.getActiveProfile()
@@ -193,6 +206,7 @@ def loadProfileDict():
 	else:
 		dictionaries["default"].load(os.path.join(speechDictsPath, "default.dic"))
 	dictionaries["builtin"].load("builtin.dic")
+
 
 def loadVoiceDict(synth):
 	"""Loads appropriate dictionary for the given synthesizer.
@@ -204,9 +218,10 @@ It handles case when the synthesizer doesn't support voice setting.
 		_loadProfileVoiceDictionary(dictionaries["voice"], synth.name, dictionaryFileName)
 	else:
 		voiceDictsPath = dictFormatUpgrade.voiceDictsPath
-		fileName= os.path.join(voiceDictsPath, synth.name, dictionaryFileName)
+		fileName = os.path.join(voiceDictsPath, synth.name, dictionaryFileName)
 		dictionaries["voice"].load(fileName)
-	
+
+
 def _getVoiceDictionaryFileName(synth):
 	try:
 		dictFormatUpgrade.doAnyUpgrades(synth)
@@ -220,14 +235,18 @@ def _getVoiceDictionaryFileName(synth):
 		baseName=r"{synth}.dic".format(synth=synth.name)
 	return baseName
 
+
 def _hasDictionaryProfile(profileName, dictionaryName):
 	return os.path.exists(os.path.join(speechDictsPath, profileName or "", dictionaryName))
+
 
 def _hasVoiceDictionaryProfile(profileName, synthName, voiceName):
 	return os.path.exists(os.path.join(dictFormatUpgrade.getProfileVoiceDictsPath(), synthName, voiceName))
 
+
 def _loadProfileDictionary(target, profileName, dictionaryName):
 	target.load(os.path.join(speechDictsPath, profileName or "", dictionaryName))
+
 
 def _loadProfileVoiceDictionary(target, synthName, voiceName):
 	target.load(os.path.join(dictFormatUpgrade.getProfileVoiceDictsPath(), synthName, voiceName))
