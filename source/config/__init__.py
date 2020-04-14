@@ -407,9 +407,6 @@ class ConfigManager(object):
 			# We're still initialising, so don't notify anyone about this change.
 			return
 		
-		# processing new dictionary profiles
-		from speechDictHandler import loadProfileDict
-		loadProfileDict()
 		if shouldNotify:
 			post_configProfileSwitch.notify(prevConf=currentRootSection.dict())
 

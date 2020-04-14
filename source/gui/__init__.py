@@ -201,7 +201,8 @@ class MainFrame(wx.Frame):
 
 	def onVoiceDictionaryCommand(self,evt):
 		# Translators: Title for voice dictionary for the current voice such as current eSpeak variant.
-		self._popupSettingsDialog(DictionaryDialog,_("Voice dictionary (%s)")%speechDictHandler.dictionaries["voice"].fileName,speechDictHandler.dictionaries["voice"])
+		dic = speechDictHandler.getDictionary("voice")
+		self._popupSettingsDialog(DictionaryDialog,_("Voice dictionary (%s)")%dic.fileName,dic)
 
 	def onTemporaryDictionaryCommand(self,evt):
 		# Translators: Title for temporary speech dictionary dialog (the voice dictionary that is active as long as NvDA is running).

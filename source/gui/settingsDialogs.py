@@ -2694,7 +2694,14 @@ class DictionaryDialog(SettingsDialog):
 		if self.tempSpeechDict!=self.speechDict:
 			del self.speechDict[:]
 			self.speechDict.extend(self.tempSpeechDict)
+
+			newDictionary = not os.path.exists(self.speechDict.fileName)
 			self.speechDict.save()
+			if newDictionary:
+				# if we are saving a dictionary that didn't exist before (user just performed the first edition)
+				# we have to activate it now, otherwise it will be effective only on next profile switch.
+				log.debug(f"Activating new dictionary {self.speechDict.fileName}")
+				speechDictHandler.reloadDictionaries()
 		super(DictionaryDialog, self).onOk(evt)
 
 	def onImportEntriesClick(self, evt):
