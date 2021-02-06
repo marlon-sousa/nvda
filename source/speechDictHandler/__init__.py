@@ -43,7 +43,7 @@ class SpeechDictEntry:
 
 	def sub(self, text):
 		replacement=self.replacement
-		return self.compiled.sub(replacement, text)
+		return self.compiled.subn(replacement, text)
 
 class SpeechDict(list):
 
@@ -100,23 +100,26 @@ class SpeechDict(list):
 		file.close()
 
 	def sub(self, text):
+		numSubs = 0
 		invalidEntries = []
 		for index, entry in enumerate(self):
 			try:
-				text = entry.sub(text)
+				text, numSubs = entry.sub(text)
 			except re.error as exc:
 				dictName = self.fileName or "temporary dictionary"
 				log.error(f"Invalid dictionary entry {index+1} in {dictName}: \"{entry.pattern}\", {exc}")
 				invalidEntries.append(index)
 			for index in reversed(invalidEntries):
 				del self[index]
-		return text
+		return (text, numSubs)
 
 def processText(text):
 	if not globalVars.speechDictionaryProcessing:
 		return text
 	for type in dictTypes:
-		text=dictionaries[type].sub(text)
+		text, numSubs = dictionaries[type].sub(text)
+		if numSubs:  # avoid chained substitutions
+			break
 	return text
 
 def initialize():
